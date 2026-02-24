@@ -1,0 +1,6 @@
+# Keep this file minimal.
+#
+# NOTE: Git LFS tracking was removed because the remote repository is currently
+# out of LFS budget, which blocks pushes that require uploading LFS objects.
+
+* text=auto

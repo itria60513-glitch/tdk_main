@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Communication.Module;
+using EFEM.FileUtilities;
+using LogUtility;
+
+namespace Communication.GUI
+{
+    internal class TcpHermosProtocolTest
+    {
+        public TcpHermosProtocolTest()
+        {
+            var hermosProtocol = new HermosProtocol();
+            var config = new TCP(new TCPConfig("8.8.8.8","80"));
+            var log = new LogUtilityClient();
+            var tcp = new Tcpip(hermosProtocol, config, log);
+            tcp.Connect();
+        }
+    }
+}
