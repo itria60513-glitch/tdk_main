@@ -1,5 +1,6 @@
 ﻿using Communication.Interface;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -54,6 +55,16 @@ namespace Communication.Protocol
             byteArray[intSize - 1] = (byte)0xD;
             return intSize;
         }
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+            intSize += 1;
+            byte[] newArray = new byte[intSize];
+            for (int i = 0; i < intSize - 1; i++)
+                newArray[i] = byteArray[i];
+            byteArray = newArray;
+            byteArray[intSize - 1] = (byte)0xC;
+            return intSize;
+        }
         public void Purge()
         {
             Monitor.Enter(_monitor);
@@ -106,9 +117,16 @@ namespace Communication.Protocol
                 Monitor.Exit(_monitor);
             }
         }
-        public bool VerifyInFrameStructure(byte[] buffer, int size)
+        public (bool,byte[]) VerifyInFrameStructure(byte[] buffer, int size)
         {
-            return true;
+            if (buffer[size - 1] == 0x0D)
+            {
+                byte[] result = new byte[buffer.Length - 1];
+                Buffer.BlockCopy(buffer, 0, result, 0, result.Length);
+                return (true, result);
+            }
+
+            return (false, buffer);
         }
         #endregion Public Method 
     }

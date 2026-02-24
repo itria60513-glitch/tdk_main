@@ -45,8 +45,6 @@ namespace Communication.Protocol
 		#region Public Method
 		public int AddOutFrameInfo(ref byte[] byteArray, int intSize)
 		{
-			//if(byteArray[intSize-1]!=(byte)0xA)
-			//{
 				intSize += 2;
 				byte[] newArray = new byte[intSize];
 				for(int i=0; i<intSize-2; i++)
@@ -54,10 +52,20 @@ namespace Communication.Protocol
 				byteArray = newArray;
 				byteArray[intSize-2] = (byte)0xD;
 				byteArray[intSize-1] = (byte)0xA;
-			//}
 			return intSize;
 		}
-		public void Purge()
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+            intSize += 2;
+            byte[] newArray = new byte[intSize];
+            for (int i = 0; i < intSize - 2; i++)
+                newArray[i] = byteArray[i];
+            byteArray = newArray;
+            byteArray[intSize - 2] = (byte)0xC;
+            byteArray[intSize - 1] = (byte)0xA;
+            return intSize;
+        }
+        public void Purge()
 		{
 			Monitor.Enter(_monitor);
 			try
@@ -110,18 +118,21 @@ namespace Communication.Protocol
 				Monitor.Exit(_monitor);
 			}
 		}
-		public bool VerifyInFrameStructure(byte[] byteArray, int intSize)
+		public (bool, byte[]) VerifyInFrameStructure(byte[] byteArray, int intSize)
 		{
 			if(intSize < 2)
-				return false;
-			if(byteArray[intSize-2]==0xD && byteArray[intSize-1]==0xA)
-				return true;
+				return (false, byteArray);
+            byte[] result = new byte[byteArray.Length - 2];
+            Buffer.BlockCopy(byteArray, 0, result, 0, result.Length);
+
+            if (byteArray[intSize-2]==0xD && byteArray[intSize-1]==0xA)
+				return (true, result);
 			else if(byteArray[intSize-2]==0xA && byteArray[intSize-1]==0xD)
-				return true;
+				return (true, result);
 			else
 			{
 				Fire_LoggingRequest(11, "Cannot find CR or LF in the end of message.");
-				return false;
+				return (false, byteArray);
 			}
 		}
         #endregion Public Method

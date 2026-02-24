@@ -6,6 +6,7 @@ namespace Communication.Interface
     public interface IProtocol
     {
         int AddOutFrameInfo(ref byte[] byteArray, int intSize);
+        int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize);
         int Pop(ref byte[] byteArray);
         void Purge();
         int Push(byte[] byteArray, int intSize);
@@ -13,7 +14,7 @@ namespace Communication.Interface
         {
             get;
         }
-        bool VerifyInFrameStructure(byte[] byteArray, int intSize);
+        (bool, byte[]) VerifyInFrameStructure(byte[] byteArray, int intSize);
         event LogEventHandler LoggingRequest;
 
     }

@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Text;
 using Communication.Interface;
-using Communication.Module.Enum;
+using Communication.Connector.Enum;
 
 namespace TDKController.Tests.Helpers
 {

@@ -407,10 +407,11 @@ namespace Communication.Connector
                     readBytes = this._protocol.Pop(ref byInBuffer);
                     if (readBytes > 0)
                     {
-                        if (this._protocol.VerifyInFrameStructure(byInBuffer, readBytes))
+                        var verifyResult = _protocol.VerifyInFrameStructure(byInBuffer, readBytes);
+                        if (verifyResult.Item1)
                         {
-                            WriteLog("Received==> ", byInBuffer, readBytes);
-                            Fire_DataReceived(byInBuffer, readBytes);
+                            WriteLog("Received==> ", verifyResult.Item2, verifyResult.Item2.Length);
+                            Fire_DataReceived(verifyResult.Item2, verifyResult.Item2.Length);
                         }
                         else
                         {

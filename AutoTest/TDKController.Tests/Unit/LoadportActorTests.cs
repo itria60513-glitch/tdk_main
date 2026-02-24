@@ -4,7 +4,7 @@ using System.Threading;
 using System.Reflection;
 using System.Text;
 using Communication.Interface;
-using Communication.Module.Enum;
+using Communication.Connector.Enum;
 using NUnit.Framework;
 using TDKController;
 using TDKController.Tests.Helpers;

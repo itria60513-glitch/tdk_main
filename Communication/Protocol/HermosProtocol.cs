@@ -83,6 +83,44 @@ namespace Communication.Protocol
             return total;
 
         }
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+            if (byteArray == null || intSize < 0 || intSize > byteArray.Length)
+                return -1;
+
+            var len = intSize;
+            var total = len + 8;
+            var frame = new byte[total];
+            var highNibble = (byte)((len >> 4) & 0x0F);
+            var lowNibble = (byte)(len & 0x0F);
+
+            frame[0] = (byte)'R';
+            frame[1] = ToHexChar(highNibble);
+            frame[2] = ToHexChar(lowNibble);
+
+            Buffer.BlockCopy(byteArray, 0, frame, 3, len);
+
+            frame[3 + len] = 0x0D;
+            int iend = 4 + len;
+            int xorChk = 0;
+            for (int i = 0; i < iend; i++)
+                xorChk ^= frame[i];
+
+            byte csXor = (byte)xorChk;
+            frame[iend] = ToHexChar((byte)((csXor >> 4) & 0x0F));
+            frame[iend + 1] = ToHexChar((byte)(csXor & 0x0F));
+
+            int sumChk = 0;
+            for (int i = 0; i < iend; i++)
+                sumChk += frame[i];
+
+            byte csSum = (byte)sumChk;
+            frame[iend + 2] = ToHexChar((byte)((csSum >> 4) & 0x0F));
+            frame[iend + 3] = ToHexChar((byte)(csSum & 0x0F));
+
+            byteArray = frame;
+            return total;
+        }
         public void Purge()
         {
             Monitor.Enter(_monitor);
@@ -135,22 +173,22 @@ namespace Communication.Protocol
                 Monitor.Exit(_monitor);
             }
         }
-        public bool VerifyInFrameStructure(byte[] buffer, int size)
+        public (bool,byte[]) VerifyInFrameStructure(byte[] buffer, int size)
         {
 
             if (buffer == null || size <= 0 || size > buffer.Length)
-                return false;
+                return (false, buffer);
 
             var len = size;
 
             if (len < 8)
-                return false;
+                return (false, buffer);
 
             if (buffer[0] != (byte)'S')
-                return false;
+                return (false, buffer);
 
             if (buffer[len - 5] != 0x0D) 
-                return false;
+                return (false, buffer);
 
             int sumInt = 0;
             for (int i = 0; i < len - 4; i++)
@@ -161,7 +199,7 @@ namespace Communication.Protocol
             var sumLowAscii = ToHexAscii((byte)(sum & 0x0F));
 
             if (buffer[len - 2] != sumHighAscii || buffer[len - 1] != sumLowAscii)
-                return false;
+                return (false, buffer);
 
             byte x = 0;
             for (int i = 0; i < len - 4; i++)
@@ -171,20 +209,21 @@ namespace Communication.Protocol
             byte xorLowAscii = ToHexAscii((byte)(x & 0x0F));
 
             if (buffer[len - 4] != xorHighAscii || buffer[len - 3] != xorLowAscii)
-                return false;
+                return (false, buffer);
 
             var command = (char)buffer[3];
 
             if (!(command == 'x' || command == 'w' || command == 'n' || command == 'v' || command == 'e'))
-                return false;
+                return (false, buffer);
 
             int infoLen = len - 10;
             if (infoLen > 0 && infoLen > (MAXINFOLEN - 10))
             {
-                return false;
+                return (false, buffer);
             }
-
-            return true;
+            byte[] result = new byte[buffer.Length - 8];
+            Buffer.BlockCopy(buffer, 0, result, 0, result.Length);
+            return (true, result);
 
         }
         #endregion Public Method 

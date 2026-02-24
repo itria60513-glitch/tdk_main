@@ -36,7 +36,10 @@ namespace AdvantechDIO.Module
         #region Fields
 
         private readonly ILogUtility _logUtility;
-        private readonly AdvantechDIOConfig _config;
+        /// <summary>
+        /// XML-mapped configuration for device index and port topology.
+        /// </summary>
+        public AdvantechDIOConfig Config { get; set; }
         private readonly object _syncRoot = new object();
 
         private InstantDiCtrl _instantDiCtrl;
@@ -104,13 +107,13 @@ namespace AdvantechDIO.Module
         public AdvantechDIO(ILogUtility logUtility, AdvantechDIOConfig config)
         {
             _logUtility = logUtility ?? throw new ArgumentNullException(nameof(logUtility));
-            _config = config ?? throw new ArgumentNullException(nameof(config));
+            Config = config ?? throw new ArgumentNullException(nameof(config));
 
-            DeviceID = _config.Index;
-            InputPortCount = _config.DIPortCount;
-            InputBitsPerPort = _config.DIPinCountPerPort;
-            OutputPortCount = _config.DOPortCount;
-            OutputBitsPerPort = _config.DOPinCountPerPort;
+            DeviceID = Config.Index;
+            InputPortCount = Config.DIPortCount;
+            InputBitsPerPort = Config.DIPinCountPerPort;
+            OutputPortCount = Config.DOPortCount;
+            OutputBitsPerPort = Config.DOPinCountPerPort;
         }
 
         #endregion
@@ -133,7 +136,7 @@ namespace AdvantechDIO.Module
                         return (int)ErrorCode.Success;
                     }
 
-                    var deviceInfo = new DeviceInformation(_config.Index);
+                    var deviceInfo = new DeviceInformation(Config.Index);
 
                     // Initialize DI controller if DI ports are configured
                     if (InputPortCount > 0)
@@ -143,7 +146,7 @@ namespace AdvantechDIO.Module
                         if (!_instantDiCtrl.Initialized)
                         {
                             var errCode = ErrorCode.ErrorDeviceNotExist;
-                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DI controller failed to initialize for device index {_config.Index}");
+                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DI controller failed to initialize for device index {Config.Index}");
                             RaiseExceptionOccurred();
                             CleanupControllers();
                             return (int)errCode;
@@ -159,7 +162,7 @@ namespace AdvantechDIO.Module
                         if (!_instantDoCtrl.Initialized)
                         {
                             var errCode = ErrorCode.ErrorDeviceNotExist;
-                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DO controller failed to initialize for device index {_config.Index}");
+                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DO controller failed to initialize for device index {Config.Index}");
                             RaiseExceptionOccurred();
                             CleanupControllers();
                             return (int)errCode;

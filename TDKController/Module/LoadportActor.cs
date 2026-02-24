@@ -206,7 +206,10 @@ namespace TDKController
 
         #region Injected Dependencies
 
-        private readonly LoadportActorConfig _config;
+        /// <summary>
+        /// Configuration parameters for TAS300 communication timeouts.
+        /// </summary>
+        public LoadportActorConfig Config { get; set; }
         private readonly ILogUtility _logger;
 
         #endregion
@@ -297,7 +300,7 @@ namespace TDKController
         /// </exception>
         public LoadportActor(LoadportActorConfig config, IConnector connector, ILogUtility logger)
         {
-            _config = config ?? throw new ArgumentNullException(nameof(config));
+            Config = config ?? throw new ArgumentNullException(nameof(config));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             if (connector == null) throw new ArgumentNullException(nameof(connector));
             Connector = connector;
@@ -891,7 +894,7 @@ namespace TDKController
             // Phase 1: Send command, wait for ACK
             var commandBytes = Encoding.ASCII.GetBytes(command);
             _connector.Send(commandBytes, commandBytes.Length);
-            if (!_ackSignal.Wait(_config.AckTimeout))
+            if (!_ackSignal.Wait(Config.AckTimeout))
             {
                 _logger.WriteLog(LOG_KEY, LogHeadType.Error, string.Format("SendMovSetCommand: ACK timeout for {0}", command));
                 return ErrorCode.AckTimeout;
@@ -904,7 +907,7 @@ namespace TDKController
             }
 
             // Phase 2: Wait for INF/ABS completion
-            if (!_infSignal.Wait(_config.InfTimeout))
+            if (!_infSignal.Wait(Config.InfTimeout))
             {
                 _logger.WriteLog(LOG_KEY, LogHeadType.Error, string.Format("SendMovSetCommand: INF timeout for {0}", command));
                 return ErrorCode.InfTimeout;
@@ -932,7 +935,7 @@ namespace TDKController
 
             var commandBytes = Encoding.ASCII.GetBytes(command);
             _connector.Send(commandBytes, commandBytes.Length);
-            if (!_ackSignal.Wait(_config.AckTimeout))
+            if (!_ackSignal.Wait(Config.AckTimeout))
             {
                 _logger.WriteLog(LOG_KEY, LogHeadType.Error, string.Format("SendAckOnlyCommand: ACK timeout for {0}", command));
                 return ErrorCode.AckTimeout;

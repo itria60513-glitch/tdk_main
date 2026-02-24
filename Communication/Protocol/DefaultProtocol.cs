@@ -22,6 +22,10 @@ namespace Communication.Protocol
         {
             return intSize;
         }
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+            return intSize;
+        }
         public void Purge()
         {
             m_queue.purge();
@@ -58,9 +62,9 @@ namespace Communication.Protocol
             }
             return size;
         }
-        public bool VerifyInFrameStructure(byte[] byteArray, int intSize)
+        public (bool,byte[]) VerifyInFrameStructure(byte[] byteArray, int intSize)
         {
-            return true;
+            return (true, byteArray);
         }
         public object DeviceCode
         {

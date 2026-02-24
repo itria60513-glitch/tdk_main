@@ -1,5 +1,6 @@
 ﻿using Communication.Interface;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -51,6 +52,15 @@ namespace Communication.Protocol
             var frame = new byte[intSize + 1];
             Buffer.BlockCopy(byteArray, 0, frame, 0, len);
             byteArray[intSize] = 0x0D;
+            byteArray = frame;
+            return intSize + 1;
+        }
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+            var len = byteArray.Length;
+            var frame = new byte[intSize + 1];
+            Buffer.BlockCopy(byteArray, 0, frame, 0, len);
+            byteArray[intSize] = 0x0C;
             byteArray = frame;
             return intSize + 1;
         }
@@ -106,13 +116,15 @@ namespace Communication.Protocol
                 Monitor.Exit(_monitor);
             }
         }
-        public bool VerifyInFrameStructure(byte[] buffer, int size)
+        public (bool, byte[]) VerifyInFrameStructure(byte[] buffer, int size)
         {
             var len = buffer.Length;
-            if(len<3 || buffer[len-1]!=0x0D)
-                return false;
-
-            return true;
+            
+            if (len<3 || buffer[len-1]!=0x0D)
+                return (false, buffer);
+            byte[] result = new byte[buffer.Length - 1];
+            Buffer.BlockCopy(buffer, 0, result, 0, result.Length);
+            return (true, result);
         }
         #endregion Public Method 
     }

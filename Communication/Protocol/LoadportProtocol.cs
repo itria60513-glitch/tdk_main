@@ -93,6 +93,46 @@ namespace Communication.Protocol
             byteArray = frame;
             return totalLen;
         }
+        public int AddOutFrameInfoWithFakeHeader(ref byte[] byteArray, int intSize)
+        {
+
+            if (byteArray == null || intSize < 0 || intSize > byteArray.Length)
+                return -1;
+
+            int len = intSize;
+            int totalLen = len + 9;
+            int dlen = len + 5;
+
+            var frame = new byte[totalLen];
+
+            frame[0] = 0x02; //Fake header
+
+            frame[1] = (byte)((dlen >> 8) & 0xFF);
+            frame[2] = (byte)(dlen & 0xFF);
+
+            frame[3] = (byte)'0';
+            frame[4] = (byte)'0';
+
+            Buffer.BlockCopy(byteArray, 0, frame, 5, len);
+
+            frame[len + 5] = (byte)';';
+
+            int checksum = 0;
+            for (int i = 1; i < len + 6; i++)
+                checksum += frame[i];
+
+            byte cs = (byte)checksum;
+            byte csh = (byte)((cs >> 4) & 0x0F);
+            byte csl = (byte)(cs & 0x0F);
+
+            frame[len + 6] = NibbleToUpperHexAscii(csh);
+            frame[len + 7] = NibbleToUpperHexAscii(csl);
+
+            frame[len + 8] = 0x03;
+
+            byteArray = frame;
+            return totalLen;
+        }
         public void Purge()
         {
             Monitor.Enter(_monitor);
@@ -137,26 +177,26 @@ namespace Communication.Protocol
                 Monitor.Exit(_monitor);
             }
         }
-        public bool VerifyInFrameStructure(byte[] buffer, int size)
+        public (bool,byte[]) VerifyInFrameStructure(byte[] buffer, int size)
         {
             
             if (size < 3)
             {
                 Console.WriteLine("Message too short");
-                return false;
+                return (false, buffer);
             }
 
             if (buffer[0] != 0x01)
             {
                 Console.WriteLine("Wrong header");
-                return false;
+                return (false, buffer);
             }
 
             var dataLen = (buffer[1] << 8) | buffer[2];
             if (dataLen + 4 != size)
             {
                 Console.WriteLine("Wrong length");
-                return false;
+                return (false, buffer);
             }
 
             var calc = 0;
@@ -168,35 +208,36 @@ namespace Communication.Protocol
             if (buffer[size - 3] != high || buffer[size - 2] != low)
             {
                 Console.WriteLine("Wrong checksum");
-                return false;
+                return (false, buffer);
             }
 
             if (buffer[size - 1] != 0x03)
             {
                 Console.WriteLine("Wrong tail");
-                return false;
+                return (false, buffer);
             }
             
             if (buffer[8] != (byte)':')
             {
                 Console.WriteLine("No : between type and name");
-                return false;
+                return (false, buffer);
             }
             var paramLen = size - 18;
 
             if (paramLen < 0 || paramLen == 1 || (paramLen > 1 && buffer[14] != (byte)'/'))
             {
                 Console.WriteLine("Wrong format");
-                return false;
+                return (false, buffer);
             }
 
             if (paramLen > PARAMLEN)
             {
                 Console.WriteLine("Parameter too long");
-                return false;
+                return (false, buffer);
             }
-
-            return true;
+            byte[] result = new byte[buffer.Length - 8];
+            Buffer.BlockCopy(buffer, 0, result, 5, size-8);
+            return (true, result);
 
 
         }
