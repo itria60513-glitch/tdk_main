@@ -1,8 +1,8 @@
 using AdvantechDIO.Config;
-using AdvantechDIO.Module;
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
 using TDKLogUtility.Module;
@@ -11,448 +11,574 @@ namespace AdvantechDIO.ManualTestGui
 {
     public partial class MainForm : Form
     {
-        private const string UiLogKey = "AdvantechDIO.ManualTestGui";
-
-        private readonly AdvantechDIOConfig _config;
         private readonly ILogUtility _logger;
 
-        private AdvantechDIO.Module.AdvantechDIO _dio;
-        private bool _isMonitoring;
-        private bool _firstDiPopupShown;
+        private AdvantechDIO.Module.AdvantechDIO _dioDev0;
+        private AdvantechDIO.Module.AdvantechDIO _dioDev1;
+        private readonly AdvantechDIOConfig _configDev0;
+        private readonly AdvantechDIOConfig _configDev1;
+        private Label[] _diLedsDev0;
+        private Label[] _diLedsDev1;
+        private Label[] _doLedsDev0;
+        private Label[] _doLedsDev1;
+        private DeviceTestControls _testControlsDev0;
+        private DeviceTestControls _testControlsDev1;
+        private Timer _statusRefreshTimer;
+        private bool _isRefreshingStatusPanel;
 
         public MainForm()
         {
             InitializeComponent();
 
-            _config = new AdvantechDIOConfig
+            _logger = new UiLogUtility();
+
+            _configDev0 = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 2,
+                DIPortCount = 1,
+                DIPinCountPerPort = 8,
+                DOPortCount = 1,
+                DOPinCountPerPort = 8
+            };
+            _configDev1 = new AdvantechDIOConfig
+            {
+                DeviceID = 1,
+                DIPortCount = 1,
                 DIPinCountPerPort = 8,
                 DOPortCount = 1,
                 DOPinCountPerPort = 8
             };
 
-            _logger = new UiLogUtility();
-            ApplyDefaultUiValues();
-            UpdateUiState(false);
-            WriteStatus("Application started with default values.");
+            InitializeDevicePanel(grpDevice0, 0, out _diLedsDev0, out _doLedsDev0);
+            InitializeDevicePanel(grpDevice1, 1, out _diLedsDev1, out _doLedsDev1);
+
+            SetDeviceOfflineStyle(_diLedsDev0, _doLedsDev0, lblDev0State);
+            SetDeviceOfflineStyle(_diLedsDev1, _doLedsDev1, lblDev1State);
+
+            _statusRefreshTimer = new Timer { Interval = 500 };
+            _statusRefreshTimer.Tick += StatusRefreshTimer_Tick;
+            _statusRefreshTimer.Start();
+
+            WriteStatus("Application started.");
         }
 
-        private void ApplyDefaultUiValues()
+        private void InitializeDevicePanel(GroupBox grp, int deviceId, out Label[] diLeds, out Label[] doLeds)
         {
-            txtDeviceId.Text = _config.DeviceID.ToString(CultureInfo.InvariantCulture);
-            txtDiPort.Text = "0";
-            txtDiBit.Text = "0";
-            txtDoPort.Text = "0";
-            txtDoBit.Text = "0";
-            txtDoValue.Text = "0";
-            lblDiPortValue.Text = "--";
-            lblDiBitValue.Text = "--";
-            lblDoPortValue.Text = "--";
-            lblDoBitValue.Text = "--";
-            lblDeviceName.Text = "--";
-        }
+            const int bitCount = 8;
+            const int ledSize = 28;
+            const int cellWidth = 42;
+            const int startX = 48;
+            const int testBaseY = 62;
+            const int diBitLabelY = 190;
+            const int diLedY = 206;
+            const int doBitLabelY = 240;
+            const int doLedY = 256;
 
-        private void BtnConnect_Click(object sender, EventArgs e)
-        {
-            try
+            DeviceTestControls testControls = CreateDeviceTestControls(grp, deviceId, testBaseY);
+            if (deviceId == 0)
             {
-                if (!TryParseNonNegative(txtDeviceId.Text, "DeviceID", out int deviceId))
+                _testControlsDev0 = testControls;
+            }
+            else
+            {
+                _testControlsDev1 = testControls;
+            }
+
+            grp.Controls.Add(new Label
+            {
+                Text = "DI",
+                AutoSize = true,
+                Location = new Point(10, diLedY + 8),
+                Font = new Font(Font, FontStyle.Bold)
+            });
+
+            grp.Controls.Add(new Label
+            {
+                Text = "DO",
+                AutoSize = true,
+                Location = new Point(10, doLedY + 8),
+                Font = new Font(Font, FontStyle.Bold)
+            });
+
+            diLeds = new Label[bitCount];
+            doLeds = new Label[bitCount];
+
+            for (int bit = 0; bit < bitCount; bit++)
+            {
+                int x = startX + bit * cellWidth;
+
+                // DI bit number label
+                grp.Controls.Add(new Label
                 {
-                    return;
-                }
+                    Text = bit.ToString(CultureInfo.InvariantCulture),
+                    AutoSize = true,
+                    Location = new Point(x + 9, diBitLabelY)
+                });
 
-                EnsureDioInstance(deviceId);
-                int result = _dio.Connect();
-                WriteResult(nameof(_dio.Connect), result);
-
-                if (result == 0)
+                // DI LED (read-only indicator)
+                Label diLed = new Label
                 {
-                    UpdateUiState(true);
-                    lblDeviceName.Text = string.IsNullOrWhiteSpace(_dio.DeviceName) ? "--" : _dio.DeviceName;
-                }
-                else
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Location = new Point(x, diLedY),
+                    Size = new Size(ledSize, ledSize),
+                    BackColor = Color.DarkGray,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                grp.Controls.Add(diLed);
+                diLeds[bit] = diLed;
+
+                // DO bit number label
+                grp.Controls.Add(new Label
                 {
-                    // Connect-time initialization failure is considered critical per FR-015A.
-                    ShowCriticalPopup($"Connect failed. Code={result}.");
-                    UpdateUiState(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteStatus($"Connect exception: {ex.Message}");
-                ShowCriticalPopup("Unexpected error during Connect.");
-                UpdateUiState(false);
+                    Text = bit.ToString(CultureInfo.InvariantCulture),
+                    AutoSize = true,
+                    Location = new Point(x + 9, doBitLabelY)
+                });
+
+                // DO LED (clickable to toggle)
+                Label doLed = new Label
+                {
+                    BorderStyle = BorderStyle.Fixed3D,
+                    Location = new Point(x, doLedY),
+                    Size = new Size(ledSize, ledSize),
+                    BackColor = Color.DarkGray,
+                    Cursor = Cursors.Hand,
+                    Tag = (deviceId << 8) | bit,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                doLed.Click += DoLed_Click;
+                grp.Controls.Add(doLed);
+                doLeds[bit] = doLed;
             }
         }
 
-        private void BtnDisconnect_Click(object sender, EventArgs e)
+        private DeviceTestControls CreateDeviceTestControls(GroupBox grp, int deviceId, int baseY)
         {
-            DisconnectCurrentDio();
+            DeviceTestControls controls = new DeviceTestControls();
+
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, baseY + 2), Text = "DI Port" });
+            controls.DiPortTextBox = new TextBox { Location = new Point(58, baseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(controls.DiPortTextBox);
+
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, baseY + 2), Text = "Bit" });
+            controls.DiBitTextBox = new TextBox { Location = new Point(126, baseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(controls.DiBitTextBox);
+
+            controls.GetDiPortButton = new Button { Location = new Point(172, baseY - 1), Size = new Size(88, 23), Text = "Get DI Port" };
+            controls.GetDiPortButton.Click += (s, e) => ExecuteGetDiPort(deviceId);
+            grp.Controls.Add(controls.GetDiPortButton);
+
+            controls.GetDiBitButton = new Button { Location = new Point(266, baseY - 1), Size = new Size(88, 23), Text = "Get DI Bit" };
+            controls.GetDiBitButton.Click += (s, e) => ExecuteGetDiBit(deviceId);
+            grp.Controls.Add(controls.GetDiBitButton);
+
+            controls.DiResultLabel = new Label { AutoSize = true, Location = new Point(10, baseY + 27), Text = "DI Value: --" };
+            grp.Controls.Add(controls.DiResultLabel);
+
+            int doBaseY = baseY + 52;
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, doBaseY + 2), Text = "DO Port" });
+            controls.DoPortTextBox = new TextBox { Location = new Point(58, doBaseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(controls.DoPortTextBox);
+
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, doBaseY + 2), Text = "Bit" });
+            controls.DoBitTextBox = new TextBox { Location = new Point(126, doBaseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(controls.DoBitTextBox);
+
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(171, doBaseY + 2), Text = "Value" });
+            controls.DoValueTextBox = new TextBox { Location = new Point(209, doBaseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(controls.DoValueTextBox);
+
+            controls.GetDoPortButton = new Button { Location = new Point(251, doBaseY - 1), Size = new Size(103, 23), Text = "Get DO Port" };
+            controls.GetDoPortButton.Click += (s, e) => ExecuteGetDoPort(deviceId);
+            grp.Controls.Add(controls.GetDoPortButton);
+
+            controls.GetDoBitButton = new Button { Location = new Point(10, doBaseY + 24), Size = new Size(88, 23), Text = "Get DO Bit" };
+            controls.GetDoBitButton.Click += (s, e) => ExecuteGetDoBit(deviceId);
+            grp.Controls.Add(controls.GetDoBitButton);
+
+            controls.SetDoPortButton = new Button { Location = new Point(104, doBaseY + 24), Size = new Size(88, 23), Text = "Set DO Port" };
+            controls.SetDoPortButton.Click += (s, e) => ExecuteSetDoPort(deviceId);
+            grp.Controls.Add(controls.SetDoPortButton);
+
+            controls.SetDoBitButton = new Button { Location = new Point(198, doBaseY + 24), Size = new Size(88, 23), Text = "Set DO Bit" };
+            controls.SetDoBitButton.Click += (s, e) => ExecuteSetDoBit(deviceId);
+            grp.Controls.Add(controls.SetDoBitButton);
+
+            controls.DoResultLabel = new Label { AutoSize = true, Location = new Point(10, doBaseY + 52), Text = "DO Value: --" };
+            grp.Controls.Add(controls.DoResultLabel);
+
+            return controls;
         }
 
-        private void BtnGetInput_Click(object sender, EventArgs e)
+        private void ExecuteGetDiPort(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            if (!TryValidateDiPort(out int portIndex))
+            if (!TryParseNonNegative(controls.DiPortTextBox.Text, $"Dev{deviceId} DI Port", out int portIndex))
             {
                 return;
             }
 
             byte value;
-            int result = _dio.GetInput(portIndex, out value);
-            lblDiPortValue.Text = value.ToString(CultureInfo.InvariantCulture);
-            WriteResult("GetInput", result, value.ToString(CultureInfo.InvariantCulture));
+            int result = device.GetInput(portIndex, out value);
+            controls.DiResultLabel.Text = result == 0 ? $"DI Value: {value}" : "DI Value: --";
+            WriteStatus($"Dev{deviceId} GetInput(port={portIndex}): Code={result}" + (result == 0 ? $", Value={value}" : string.Empty));
         }
 
-        private void BtnGetInputBit_Click(object sender, EventArgs e)
+        private void ExecuteGetDiBit(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            if (!TryValidateDiPort(out int portIndex) || !TryValidateDiBit(out int bitIndex))
+            if (!TryParseNonNegative(controls.DiPortTextBox.Text, $"Dev{deviceId} DI Port", out int portIndex) ||
+                !TryParseNonNegative(controls.DiBitTextBox.Text, $"Dev{deviceId} DI Bit", out int bitIndex))
             {
                 return;
             }
 
             byte value;
-            int result = _dio.GetInputBit(portIndex, bitIndex, out value);
-            lblDiBitValue.Text = value.ToString(CultureInfo.InvariantCulture);
-            WriteResult("GetInputBit", result, value.ToString(CultureInfo.InvariantCulture));
+            int result = device.GetInputBit(portIndex, bitIndex, out value);
+            controls.DiResultLabel.Text = result == 0 ? $"DI Value: {value}" : "DI Value: --";
+            WriteStatus($"Dev{deviceId} GetInputBit(port={portIndex}, bit={bitIndex}): Code={result}" + (result == 0 ? $", Value={value}" : string.Empty));
         }
 
-        private void BtnSetOutput_Click(object sender, EventArgs e)
+        private void ExecuteGetDoPort(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            if (!TryValidateDoPort(out int portIndex) || !TryValidateDoValue(out byte value))
-            {
-                return;
-            }
-
-            int result = _dio.SetOutput(portIndex, value);
-            WriteResult("SetOutput", result);
-        }
-
-        private void BtnSetOutputBit_Click(object sender, EventArgs e)
-        {
-            if (!EnsureConnected())
-            {
-                return;
-            }
-
-            if (!TryValidateDoPort(out int portIndex) || !TryValidateDoBit(out int bitIndex) || !TryValidateDoBitValue(out byte value))
-            {
-                return;
-            }
-
-            int result = _dio.SetOutputBit(portIndex, bitIndex, value);
-            WriteResult("SetOutputBit", result);
-        }
-
-        private void BtnGetOutput_Click(object sender, EventArgs e)
-        {
-            if (!EnsureConnected())
-            {
-                return;
-            }
-
-            if (!TryValidateDoPort(out int portIndex))
+            if (!TryParseNonNegative(controls.DoPortTextBox.Text, $"Dev{deviceId} DO Port", out int portIndex))
             {
                 return;
             }
 
             byte value;
-            int result = _dio.GetOutput(portIndex, out value);
-            lblDoPortValue.Text = value.ToString(CultureInfo.InvariantCulture);
-            WriteResult("GetOutput", result, value.ToString(CultureInfo.InvariantCulture));
+            int result = device.GetOutput(portIndex, out value);
+            controls.DoResultLabel.Text = result == 0 ? $"DO Value: {value}" : "DO Value: --";
+            WriteStatus($"Dev{deviceId} GetOutput(port={portIndex}): Code={result}" + (result == 0 ? $", Value={value}" : string.Empty));
         }
 
-        private void BtnGetOutputBit_Click(object sender, EventArgs e)
+        private void ExecuteGetDoBit(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            if (!TryValidateDoPort(out int portIndex) || !TryValidateDoBit(out int bitIndex))
+            if (!TryParseNonNegative(controls.DoPortTextBox.Text, $"Dev{deviceId} DO Port", out int portIndex) ||
+                !TryParseNonNegative(controls.DoBitTextBox.Text, $"Dev{deviceId} DO Bit", out int bitIndex))
             {
                 return;
             }
 
             byte value;
-            int result = _dio.GetOutputBit(portIndex, bitIndex, out value);
-            lblDoBitValue.Text = value.ToString(CultureInfo.InvariantCulture);
-            WriteResult("GetOutputBit", result, value.ToString(CultureInfo.InvariantCulture));
+            int result = device.GetOutputBit(portIndex, bitIndex, out value);
+            controls.DoResultLabel.Text = result == 0 ? $"DO Value: {value}" : "DO Value: --";
+            WriteStatus($"Dev{deviceId} GetOutputBit(port={portIndex}, bit={bitIndex}): Code={result}" + (result == 0 ? $", Value={value}" : string.Empty));
         }
 
-        private void BtnSnapStart_Click(object sender, EventArgs e)
+        private void ExecuteSetDoPort(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            int result = _dio.SnapStart();
-            WriteResult("SnapStart", result);
+            if (!TryParseNonNegative(controls.DoPortTextBox.Text, $"Dev{deviceId} DO Port", out int portIndex))
+            {
+                return;
+            }
+
+            if (!byte.TryParse(controls.DoValueTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out byte value))
+            {
+                WriteStatus($"Dev{deviceId} validation failed: DO Value must be 0..255.");
+                return;
+            }
+
+            int result = device.SetOutput(portIndex, value);
+            WriteStatus($"Dev{deviceId} SetOutput(port={portIndex}, value={value}): Code={result}");
             if (result == 0)
             {
-                _isMonitoring = true;
-                _firstDiPopupShown = false;
+                controls.DoResultLabel.Text = $"DO Value: {value}";
+                RefreshDioPanel();
             }
         }
 
-        private void BtnSnapStop_Click(object sender, EventArgs e)
+        private void ExecuteSetDoBit(int deviceId)
         {
-            if (!EnsureConnected())
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            DeviceTestControls controls = GetDeviceControls(deviceId);
+            if (device == null || controls == null)
             {
                 return;
             }
 
-            int result = _dio.SnapStop();
-            WriteResult("SnapStop", result);
+            if (!TryParseNonNegative(controls.DoPortTextBox.Text, $"Dev{deviceId} DO Port", out int portIndex) ||
+                !TryParseNonNegative(controls.DoBitTextBox.Text, $"Dev{deviceId} DO Bit", out int bitIndex))
+            {
+                return;
+            }
+
+            if (!byte.TryParse(controls.DoValueTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out byte value) || (value != 0 && value != 1))
+            {
+                WriteStatus($"Dev{deviceId} validation failed: DO Bit Value must be 0 or 1.");
+                return;
+            }
+
+            int result = device.SetOutputBit(portIndex, bitIndex, value);
+            WriteStatus($"Dev{deviceId} SetOutputBit(port={portIndex}, bit={bitIndex}, value={value}): Code={result}");
             if (result == 0)
             {
-                _isMonitoring = false;
+                controls.DoResultLabel.Text = $"DO Value: {value}";
+                RefreshDioPanel();
             }
         }
 
-        private void OnDiValueChanged(object sender, EventArgs e)
+        private DeviceTestControls GetDeviceControls(int deviceId)
         {
-            UiSafe(() =>
-            {
-                if (!_isMonitoring)
-                {
-                    return;
-                }
-
-                WriteStatus("DI value changed event received.");
-                if (!_firstDiPopupShown)
-                {
-                    _firstDiPopupShown = true;
-                    MessageBox.Show(this, "DI changed (first event after SnapStart).", "DI Monitor", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            });
+            return deviceId == 0 ? _testControlsDev0 : _testControlsDev1;
         }
 
-        private void OnExceptionOccurred(object sender, EventArgs e)
+        private AdvantechDIO.Module.AdvantechDIO GetConnectedDevice(int deviceId)
         {
-            UiSafe(() =>
+            AdvantechDIO.Module.AdvantechDIO device = deviceId == 0 ? _dioDev0 : _dioDev1;
+            if (device == null || !device.IsConnected)
             {
-                // FR-015A: ExceptionOccurred is always treated as critical.
-                WriteStatus("Critical backend exception event received.");
-                ShowCriticalPopup("Critical backend exception occurred. UI will reset to disconnected state.");
-                ResetToDisconnectedState();
-            });
-        }
-
-        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            DisconnectCurrentDio();
-            if (_dio != null)
-            {
-                _dio.DI_ValueChanged -= OnDiValueChanged;
-                _dio.ExceptionOccurred -= OnExceptionOccurred;
-                _dio.Dispose();
-                _dio = null;
-            }
-        }
-
-        private void EnsureDioInstance(int deviceId)
-        {
-            if (_dio != null && _dio.IsConnected)
-            {
-                return;
+                WriteStatus($"Dev{deviceId}: Not connected.");
+                return null;
             }
 
-            if (_dio != null)
-            {
-                _dio.DI_ValueChanged -= OnDiValueChanged;
-                _dio.ExceptionOccurred -= OnExceptionOccurred;
-                _dio.Dispose();
-                _dio = null;
-            }
-
-            _config.DeviceID = deviceId;
-            _dio = new AdvantechDIO.Module.AdvantechDIO(_logger, _config);
-            _dio.DI_ValueChanged += OnDiValueChanged;
-            _dio.ExceptionOccurred += OnExceptionOccurred;
-        }
-
-        private void DisconnectCurrentDio()
-        {
-            if (_dio == null)
-            {
-                UpdateUiState(false);
-                return;
-            }
-
-            int result = _dio.Disconnect();
-            WriteResult("Disconnect", result);
-            _isMonitoring = false;
-            _firstDiPopupShown = false;
-            UpdateUiState(false);
-            lblDeviceName.Text = "--";
-        }
-
-        private void ResetToDisconnectedState()
-        {
-            _isMonitoring = false;
-            _firstDiPopupShown = false;
-
-            if (_dio != null)
-            {
-                try
-                {
-                    _dio.Disconnect();
-                }
-                catch
-                {
-                    // Ignore secondary errors while forcing UI-safe state.
-                }
-            }
-
-            UpdateUiState(false);
-            lblDeviceName.Text = "--";
-        }
-
-        private bool EnsureConnected()
-        {
-            if (_dio == null || !_dio.IsConnected)
-            {
-                WriteStatus("Action rejected: device is not connected.");
-                return false;
-            }
-
-            return true;
-        }
-
-        private void UpdateUiState(bool connected)
-        {
-            lblConnectionState.Text = connected ? "State: Connected" : "State: Disconnected";
-            btnConnect.Enabled = !connected;
-            btnDisconnect.Enabled = connected;
-            grpDi.Enabled = connected;
-            grpDo.Enabled = connected;
+            return device;
         }
 
         private bool TryParseNonNegative(string raw, string fieldName, out int value)
         {
             if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value < 0)
             {
-                WriteStatus($"Validation failed: {fieldName} must be a non-negative integer.");
+                WriteStatus($"Validation failed: {fieldName} must be non-negative integer.");
                 return false;
             }
 
             return true;
         }
 
-        private bool TryValidateDiPort(out int portIndex)
+        private void DoLed_Click(object sender, EventArgs e)
         {
-            if (!TryParseNonNegative(txtDiPort.Text, "DI Port", out portIndex))
+            Label led = (Label)sender;
+            int tag = (int)led.Tag;
+            int deviceId = tag >> 8;
+            int bit = tag & 0xFF;
+
+            AdvantechDIO.Module.AdvantechDIO device = deviceId == 0 ? _dioDev0 : _dioDev1;
+            if (device == null || !device.IsConnected)
             {
-                return false;
+                WriteStatus($"Dev{deviceId}: Not connected.");
+                return;
             }
 
-            if (portIndex >= _config.DIPortCount)
+            byte currentBitValue;
+            int result = device.GetOutputBit(0, bit, out currentBitValue);
+            if (result != 0)
             {
-                WriteStatus($"Validation failed: DI port out of range [0..{_config.DIPortCount - 1}].");
-                return false;
+                WriteStatus($"Dev{deviceId} DO[{bit}] read failed: Code={result}");
+                return;
             }
 
-            return true;
+            byte newValue = currentBitValue == 0 ? (byte)1 : (byte)0;
+            result = device.SetOutputBit(0, bit, newValue);
+            if (result == 0)
+            {
+                WriteStatus($"Dev{deviceId} DO[{bit}] -> {newValue}");
+                RefreshDioPanel();
+            }
+            else
+            {
+                WriteStatus($"Dev{deviceId} DO[{bit}] set failed: Code={result}");
+            }
         }
 
-        private bool TryValidateDiBit(out int bitIndex)
+        private void BtnConnectDev0_Click(object sender, EventArgs e)
         {
-            if (!TryParseNonNegative(txtDiBit.Text, "DI Bit", out bitIndex))
-            {
-                return false;
-            }
-
-            if (bitIndex >= _config.DIPinCountPerPort)
-            {
-                WriteStatus($"Validation failed: DI bit out of range [0..{_config.DIPinCountPerPort - 1}].");
-                return false;
-            }
-
-            return true;
+            EnsureDeviceConnection(0);
+            RefreshDioPanel();
         }
 
-        private bool TryValidateDoPort(out int portIndex)
+        private void BtnDisconnectDev0_Click(object sender, EventArgs e)
         {
-            if (!TryParseNonNegative(txtDoPort.Text, "DO Port", out portIndex))
-            {
-                return false;
-            }
-
-            if (portIndex >= _config.DOPortCount)
-            {
-                WriteStatus($"Validation failed: DO port out of range [0..{_config.DOPortCount - 1}].");
-                return false;
-            }
-
-            return true;
+            DisconnectDevice(0);
+            RefreshDioPanel();
         }
 
-        private bool TryValidateDoBit(out int bitIndex)
+        private void BtnConnectDev1_Click(object sender, EventArgs e)
         {
-            if (!TryParseNonNegative(txtDoBit.Text, "DO Bit", out bitIndex))
-            {
-                return false;
-            }
-
-            if (bitIndex >= _config.DOPinCountPerPort)
-            {
-                WriteStatus($"Validation failed: DO bit out of range [0..{_config.DOPinCountPerPort - 1}].");
-                return false;
-            }
-
-            return true;
+            EnsureDeviceConnection(1);
+            RefreshDioPanel();
         }
 
-        private bool TryValidateDoValue(out byte value)
+        private void BtnDisconnectDev1_Click(object sender, EventArgs e)
         {
-            if (!byte.TryParse(txtDoValue.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-            {
-                WriteStatus("Validation failed: DO value must be byte [0..255].");
-                return false;
-            }
-
-            return true;
+            DisconnectDevice(1);
+            RefreshDioPanel();
         }
 
-        private bool TryValidateDoBitValue(out byte value)
+        private void StatusRefreshTimer_Tick(object sender, EventArgs e)
         {
-            if (!byte.TryParse(txtDoValue.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
-            {
-                WriteStatus("Validation failed: DO bit value must be 0 or 1.");
-                return false;
-            }
-
-            if (value != 0 && value != 1)
-            {
-                WriteStatus("Validation failed: DO bit value must be 0 or 1.");
-                return false;
-            }
-
-            return true;
+            RefreshDioPanel();
         }
 
-        private void WriteResult(string action, int resultCode, string valueText = null)
+        private void RefreshDioPanel()
         {
-            string suffix = valueText == null ? string.Empty : $", Value={valueText}";
-            WriteStatus($"{action}: Code={resultCode}{suffix}");
+            if (_isRefreshingStatusPanel)
+            {
+                return;
+            }
+
+            _isRefreshingStatusPanel = true;
+            try
+            {
+                UpdateDeviceLeds(_dioDev0, _diLedsDev0, _doLedsDev0, lblDev0State);
+                UpdateDeviceLeds(_dioDev1, _diLedsDev1, _doLedsDev1, lblDev1State);
+            }
+            finally
+            {
+                _isRefreshingStatusPanel = false;
+            }
+        }
+
+        private void UpdateDeviceLeds(AdvantechDIO.Module.AdvantechDIO device, Label[] diLeds, Label[] doLeds, Label stateLabel)
+        {
+            if (device == null || !device.IsConnected)
+            {
+                SetDeviceOfflineStyle(diLeds, doLeds, stateLabel);
+                return;
+            }
+
+            byte diValue;
+            int diResult = device.GetInput(0, out diValue);
+            byte doValue;
+            int doResult = device.GetOutput(0, out doValue);
+
+            if (diResult != 0 || doResult != 0)
+            {
+                stateLabel.Text = $"Error ({diResult}/{doResult})";
+                SetDeviceOfflineStyle(diLeds, doLeds, null);
+                return;
+            }
+
+            stateLabel.Text = "Connected";
+            stateLabel.ForeColor = Color.Green;
+            for (int bit = 0; bit < 8; bit++)
+            {
+                bool diOn = (diValue & (1 << bit)) != 0;
+                bool doOn = (doValue & (1 << bit)) != 0;
+                diLeds[bit].BackColor = diOn ? Color.Lime : Color.Silver;
+                doLeds[bit].BackColor = doOn ? Color.Tomato : Color.Silver;
+            }
+        }
+
+        private void SetDeviceOfflineStyle(Label[] diLeds, Label[] doLeds, Label stateLabel)
+        {
+            if (stateLabel != null)
+            {
+                stateLabel.Text = "Disconnected";
+                stateLabel.ForeColor = Color.Gray;
+            }
+
+            for (int bit = 0; bit < 8; bit++)
+            {
+                diLeds[bit].BackColor = Color.DarkGray;
+                doLeds[bit].BackColor = Color.DarkGray;
+            }
+        }
+
+        private void EnsureDeviceConnection(int deviceId)
+        {
+            AdvantechDIO.Module.AdvantechDIO device = deviceId == 0 ? _dioDev0 : _dioDev1;
+            AdvantechDIOConfig config = deviceId == 0 ? _configDev0 : _configDev1;
+
+            if (device != null && device.IsConnected)
+            {
+                return;
+            }
+
+            if (device == null)
+            {
+                device = new AdvantechDIO.Module.AdvantechDIO(_logger, config);
+                if (deviceId == 0)
+                {
+                    _dioDev0 = device;
+                }
+                else
+                {
+                    _dioDev1 = device;
+                }
+            }
+
+            int result = device.Connect();
+            WriteStatus($"Connect Dev{deviceId}: Code={result}");
+        }
+
+        private void DisconnectDevice(int deviceId)
+        {
+            AdvantechDIO.Module.AdvantechDIO device = deviceId == 0 ? _dioDev0 : _dioDev1;
+            if (device == null)
+            {
+                return;
+            }
+
+            int result = device.Disconnect();
+            WriteStatus($"Disconnect Dev{deviceId}: Code={result}");
+        }
+
+        private void DisposeDioInstance(ref AdvantechDIO.Module.AdvantechDIO device)
+        {
+            if (device == null)
+            {
+                return;
+            }
+
+            try
+            {
+                device.Disconnect();
+            }
+            catch
+            {
+                // Swallow cleanup exceptions to keep form shutdown safe.
+            }
+
+            device.Dispose();
+            device = null;
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (_statusRefreshTimer != null)
+            {
+                _statusRefreshTimer.Stop();
+                _statusRefreshTimer.Tick -= StatusRefreshTimer_Tick;
+                _statusRefreshTimer.Dispose();
+                _statusRefreshTimer = null;
+            }
+
+            DisposeDioInstance(ref _dioDev0);
+            DisposeDioInstance(ref _dioDev1);
         }
 
         private void WriteStatus(string message)
@@ -480,11 +606,6 @@ namespace AdvantechDIO.ManualTestGui
             {
                 action();
             }
-        }
-
-        private void ShowCriticalPopup(string message)
-        {
-            MessageBox.Show(this, message, "Critical Failure", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private sealed class UiLogUtility : ILogUtility
@@ -540,6 +661,23 @@ namespace AdvantechDIO.ManualTestGui
                 Debug.WriteLine($"[{szLogKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
                 return true;
             }
+        }
+
+        private sealed class DeviceTestControls
+        {
+            public TextBox DiPortTextBox { get; set; }
+            public TextBox DiBitTextBox { get; set; }
+            public Button GetDiPortButton { get; set; }
+            public Button GetDiBitButton { get; set; }
+            public Label DiResultLabel { get; set; }
+            public TextBox DoPortTextBox { get; set; }
+            public TextBox DoBitTextBox { get; set; }
+            public TextBox DoValueTextBox { get; set; }
+            public Button GetDoPortButton { get; set; }
+            public Button GetDoBitButton { get; set; }
+            public Button SetDoPortButton { get; set; }
+            public Button SetDoBitButton { get; set; }
+            public Label DoResultLabel { get; set; }
         }
     }
 }
