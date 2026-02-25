@@ -489,10 +489,12 @@ namespace AdvantechDIO.ManualTestGui
 
         private sealed class UiLogUtility : ILogUtility
         {
+#pragma warning disable CS0067
             public event ForceWritesEventHandler ForceWritesEvent;
             public event BufferSizeChangedEventHandler BufferSizeChangedEvent;
             public event MainDirectoryChangedEventHandler MainDirectoryChangedEvent;
             public event LogListChangedEventHandler LogListChangedEvent;
+#pragma warning restore CS0067
 
             private readonly Hashtable _activeLogList = new Hashtable();
 

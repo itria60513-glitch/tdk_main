@@ -35,3 +35,15 @@ msbuild TDKServer.sln /p:Configuration=Debug
 - Non-critical failures appear in status area with result code.
 - Critical failures show popup and force safe disconnected state.
 - Restarting app resets to default values (no persistence).
+
+## Validation Record (2026-02-25)
+
+- Build check: `dotnet msbuild AutoTest\\AdvantechDIO.ManualTestGui\\AdvantechDIO.ManualTestGui.csproj /p:Configuration=Debug` -> PASS.
+- Smoke launch check: executable starts successfully and stays alive for 3 seconds before scripted close -> PASS.
+- Popup policy verification (code path inspection):
+   - First DI popup after `SnapStart` only: `OnDiValueChanged` with `_firstDiPopupShown` gate.
+   - Critical popup on FR-015A paths:
+      - connect-time failure popup in `BtnConnect_Click`
+      - backend exception popup in `OnExceptionOccurred`
+   - Non-critical validation and operation failures are written to status area via `WriteStatus` / `WriteResult`.
+- Hardware-dependent manual flow (connect to physical device, DI transition trigger, and DO signal verification) remains to be executed on target workstation.

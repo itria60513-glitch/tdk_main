@@ -92,7 +92,7 @@
 - [ ] T028 Run manual quickstart validation and record observed results in `specs/001-simple-test-gui/quickstart.md`
 - [X] T029 Final cleanup of status/error texts for concise operator readability in `AutoTest/AdvantechDIO.ManualTestGui/MainForm.cs`
 - [X] T030 Add final scope guard review to ensure no non-essential features were introduced in `specs/001-simple-test-gui/spec.md`
-- [ ] T031 Verify popup is triggered only for FR-015A critical failures and non-critical errors remain in status area in `specs/001-simple-test-gui/quickstart.md`
+- [X] T031 Verify popup is triggered only for FR-015A critical failures and non-critical errors remain in status area in `specs/001-simple-test-gui/quickstart.md`
 
 ---
 
