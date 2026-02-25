@@ -25,12 +25,16 @@ namespace AdvantechDIO.ManualTestGui
         private DeviceTestControls _testControlsDev1;
         private Timer _statusRefreshTimer;
         private bool _isRefreshingStatusPanel;
+        private ToolTip _toolTip;
+        private byte? _prevDiDev0;
+        private byte? _prevDiDev1;
 
         public MainForm()
         {
             InitializeComponent();
 
             _logger = new UiLogUtility();
+            _toolTip = new ToolTip { AutoPopDelay = 5000, InitialDelay = 400, ShowAlways = true };
 
             _configDev0 = new AdvantechDIOConfig
             {
@@ -55,6 +59,11 @@ namespace AdvantechDIO.ManualTestGui
             SetDeviceOfflineStyle(_diLedsDev0, _doLedsDev0, lblDev0State);
             SetDeviceOfflineStyle(_diLedsDev1, _doLedsDev1, lblDev1State);
 
+            _toolTip.SetToolTip(btnConnectDev0, "Connect to Device 0");
+            _toolTip.SetToolTip(btnDisconnectDev0, "Disconnect from Device 0");
+            _toolTip.SetToolTip(btnConnectDev1, "Connect to Device 1");
+            _toolTip.SetToolTip(btnDisconnectDev1, "Disconnect from Device 1");
+
             _statusRefreshTimer = new Timer { Interval = 500 };
             _statusRefreshTimer.Tick += StatusRefreshTimer_Tick;
             _statusRefreshTimer.Start();
@@ -68,13 +77,12 @@ namespace AdvantechDIO.ManualTestGui
             const int ledSize = 28;
             const int cellWidth = 42;
             const int startX = 48;
-            const int testBaseY = 62;
-            const int diBitLabelY = 190;
-            const int diLedY = 206;
-            const int doBitLabelY = 240;
-            const int doLedY = 256;
+            const int diBitLabelY = 202;
+            const int diLedY = 218;
+            const int doBitLabelY = 252;
+            const int doLedY = 268;
 
-            DeviceTestControls testControls = CreateDeviceTestControls(grp, deviceId, testBaseY);
+            DeviceTestControls testControls = CreateDeviceTestControls(grp, deviceId);
             if (deviceId == 0)
             {
                 _testControlsDev0 = testControls;
@@ -147,67 +155,117 @@ namespace AdvantechDIO.ManualTestGui
                     TextAlign = ContentAlignment.MiddleCenter
                 };
                 doLed.Click += DoLed_Click;
+                _toolTip.SetToolTip(doLed, $"Click to toggle DO bit {bit}");
                 grp.Controls.Add(doLed);
                 doLeds[bit] = doLed;
             }
         }
 
-        private DeviceTestControls CreateDeviceTestControls(GroupBox grp, int deviceId, int baseY)
+        private DeviceTestControls CreateDeviceTestControls(GroupBox grp, int deviceId)
         {
             DeviceTestControls controls = new DeviceTestControls();
 
-            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, baseY + 2), Text = "DI Port" });
-            controls.DiPortTextBox = new TextBox { Location = new Point(58, baseY), Size = new Size(36, 20), Text = "0" };
+            // SnapStart / SnapStop — row below Connect/Disconnect to avoid overlap
+            controls.SnapStartButton = new Button { Location = new Point(10, 52), Size = new Size(88, 24), Text = "SnapStart" };
+            controls.SnapStartButton.Click += (s, e) => ExecuteSnapStart(deviceId);
+            _toolTip.SetToolTip(controls.SnapStartButton, "Start interrupt-driven DI monitoring (enables ChangeOfState events)");
+            grp.Controls.Add(controls.SnapStartButton);
+
+            controls.SnapStopButton = new Button { Location = new Point(104, 52), Size = new Size(88, 24), Text = "SnapStop" };
+            controls.SnapStopButton.Click += (s, e) => ExecuteSnapStop(deviceId);
+            _toolTip.SetToolTip(controls.SnapStopButton, "Stop interrupt-driven DI monitoring");
+            grp.Controls.Add(controls.SnapStopButton);
+
+            // DI test row
+            const int diY = 86;
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, diY + 2), Text = "DI Port" });
+            controls.DiPortTextBox = new TextBox { Location = new Point(58, diY), Size = new Size(36, 20), Text = "0" };
+            _toolTip.SetToolTip(controls.DiPortTextBox, "Port index (0-based); usually 0");
             grp.Controls.Add(controls.DiPortTextBox);
 
-            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, baseY + 2), Text = "Bit" });
-            controls.DiBitTextBox = new TextBox { Location = new Point(126, baseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, diY + 2), Text = "Bit" });
+            controls.DiBitTextBox = new TextBox { Location = new Point(126, diY), Size = new Size(36, 20), Text = "0" };
+            _toolTip.SetToolTip(controls.DiBitTextBox, "Bit index within the port (0-7)");
             grp.Controls.Add(controls.DiBitTextBox);
 
-            controls.GetDiPortButton = new Button { Location = new Point(172, baseY - 1), Size = new Size(88, 23), Text = "Get DI Port" };
+            controls.GetDiPortButton = new Button { Location = new Point(172, diY - 1), Size = new Size(88, 23), Text = "Get DI Port" };
             controls.GetDiPortButton.Click += (s, e) => ExecuteGetDiPort(deviceId);
+            _toolTip.SetToolTip(controls.GetDiPortButton, "Read all 8 DI bits as a byte (uses Port value)");
             grp.Controls.Add(controls.GetDiPortButton);
 
-            controls.GetDiBitButton = new Button { Location = new Point(266, baseY - 1), Size = new Size(88, 23), Text = "Get DI Bit" };
+            controls.GetDiBitButton = new Button { Location = new Point(266, diY - 1), Size = new Size(88, 23), Text = "Get DI Bit" };
             controls.GetDiBitButton.Click += (s, e) => ExecuteGetDiBit(deviceId);
+            _toolTip.SetToolTip(controls.GetDiBitButton, "Read a single DI bit (uses Port and Bit)");
             grp.Controls.Add(controls.GetDiBitButton);
 
-            controls.DiResultLabel = new Label { AutoSize = true, Location = new Point(10, baseY + 27), Text = "DI Value: --" };
+            controls.DiResultLabel = new Label { AutoSize = true, Location = new Point(10, diY + 27), Text = "DI Value: --" };
             grp.Controls.Add(controls.DiResultLabel);
 
-            int doBaseY = baseY + 52;
-            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, doBaseY + 2), Text = "DO Port" });
-            controls.DoPortTextBox = new TextBox { Location = new Point(58, doBaseY), Size = new Size(36, 20), Text = "0" };
+            // DO test row
+            const int doY = 130;
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, doY + 2), Text = "DO Port" });
+            controls.DoPortTextBox = new TextBox { Location = new Point(58, doY), Size = new Size(36, 20), Text = "0" };
+            _toolTip.SetToolTip(controls.DoPortTextBox, "Port index (0-based); usually 0");
             grp.Controls.Add(controls.DoPortTextBox);
 
-            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, doBaseY + 2), Text = "Bit" });
-            controls.DoBitTextBox = new TextBox { Location = new Point(126, doBaseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, doY + 2), Text = "Bit" });
+            controls.DoBitTextBox = new TextBox { Location = new Point(126, doY), Size = new Size(36, 20), Text = "0" };
+            _toolTip.SetToolTip(controls.DoBitTextBox, "Bit index within the port (0-7)");
             grp.Controls.Add(controls.DoBitTextBox);
 
-            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(171, doBaseY + 2), Text = "Value" });
-            controls.DoValueTextBox = new TextBox { Location = new Point(209, doBaseY), Size = new Size(36, 20), Text = "0" };
+            grp.Controls.Add(new Label { AutoSize = true, Location = new Point(171, doY + 2), Text = "Value" });
+            controls.DoValueTextBox = new TextBox { Location = new Point(209, doY), Size = new Size(36, 20), Text = "0" };
+            _toolTip.SetToolTip(controls.DoValueTextBox, "0-255 for Set DO Port; 0 or 1 for Set DO Bit");
             grp.Controls.Add(controls.DoValueTextBox);
 
-            controls.GetDoPortButton = new Button { Location = new Point(251, doBaseY - 1), Size = new Size(103, 23), Text = "Get DO Port" };
+            controls.GetDoPortButton = new Button { Location = new Point(251, doY - 1), Size = new Size(103, 23), Text = "Get DO Port" };
             controls.GetDoPortButton.Click += (s, e) => ExecuteGetDoPort(deviceId);
+            _toolTip.SetToolTip(controls.GetDoPortButton, "Read all 8 DO bits as a byte (uses Port value)");
             grp.Controls.Add(controls.GetDoPortButton);
 
-            controls.GetDoBitButton = new Button { Location = new Point(10, doBaseY + 24), Size = new Size(88, 23), Text = "Get DO Bit" };
+            controls.GetDoBitButton = new Button { Location = new Point(10, doY + 24), Size = new Size(88, 23), Text = "Get DO Bit" };
             controls.GetDoBitButton.Click += (s, e) => ExecuteGetDoBit(deviceId);
+            _toolTip.SetToolTip(controls.GetDoBitButton, "Read a single DO bit (uses Port and Bit)");
             grp.Controls.Add(controls.GetDoBitButton);
 
-            controls.SetDoPortButton = new Button { Location = new Point(104, doBaseY + 24), Size = new Size(88, 23), Text = "Set DO Port" };
+            controls.SetDoPortButton = new Button { Location = new Point(104, doY + 24), Size = new Size(88, 23), Text = "Set DO Port" };
             controls.SetDoPortButton.Click += (s, e) => ExecuteSetDoPort(deviceId);
+            _toolTip.SetToolTip(controls.SetDoPortButton, "Write Value (0-255) to all DO bits (uses Port and Value)");
             grp.Controls.Add(controls.SetDoPortButton);
 
-            controls.SetDoBitButton = new Button { Location = new Point(198, doBaseY + 24), Size = new Size(88, 23), Text = "Set DO Bit" };
+            controls.SetDoBitButton = new Button { Location = new Point(198, doY + 24), Size = new Size(88, 23), Text = "Set DO Bit" };
             controls.SetDoBitButton.Click += (s, e) => ExecuteSetDoBit(deviceId);
+            _toolTip.SetToolTip(controls.SetDoBitButton, "Set a single DO bit to 0 or 1 (uses Port, Bit, and Value)");
             grp.Controls.Add(controls.SetDoBitButton);
 
-            controls.DoResultLabel = new Label { AutoSize = true, Location = new Point(10, doBaseY + 52), Text = "DO Value: --" };
+            controls.DoResultLabel = new Label { AutoSize = true, Location = new Point(10, doY + 52), Text = "DO Value: --" };
             grp.Controls.Add(controls.DoResultLabel);
 
             return controls;
+        }
+
+        private void ExecuteSnapStart(int deviceId)
+        {
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            if (device == null)
+            {
+                return;
+            }
+
+            int result = device.SnapStart();
+            WriteStatus($"Dev{deviceId} SnapStart: Code={result}");
+        }
+
+        private void ExecuteSnapStop(int deviceId)
+        {
+            AdvantechDIO.Module.AdvantechDIO device = GetConnectedDevice(deviceId);
+            if (device == null)
+            {
+                return;
+            }
+
+            int result = device.SnapStop();
+            WriteStatus($"Dev{deviceId} SnapStop: Code={result}");
         }
 
         private void ExecuteGetDiPort(int deviceId)
@@ -484,6 +542,17 @@ namespace AdvantechDIO.ManualTestGui
 
             stateLabel.Text = "Connected";
             stateLabel.ForeColor = Color.Green;
+
+            // Software DI change detection — works even when hardware interrupt is unavailable
+            byte? prevDi = ReferenceEquals(device, _dioDev0) ? _prevDiDev0 : _prevDiDev1;
+            if (prevDi.HasValue && prevDi.Value != diValue)
+            {
+                int devId = ReferenceEquals(device, _dioDev0) ? 0 : 1;
+                WriteStatus($"Dev{devId} DI changed: 0x{diValue:X2} (was 0x{prevDi.Value:X2})");
+            }
+            if (ReferenceEquals(device, _dioDev0)) _prevDiDev0 = diValue;
+            else _prevDiDev1 = diValue;
+
             for (int bit = 0; bit < 8; bit++)
             {
                 bool diOn = (diValue & (1 << bit)) != 0;
@@ -533,6 +602,10 @@ namespace AdvantechDIO.ManualTestGui
 
             int result = device.Connect();
             WriteStatus($"Connect Dev{deviceId}: Code={result}");
+            if (result == 0)
+            {
+                SubscribeDeviceEvents(device);
+            }
         }
 
         private void DisconnectDevice(int deviceId)
@@ -543,8 +616,40 @@ namespace AdvantechDIO.ManualTestGui
                 return;
             }
 
+            UnsubscribeDeviceEvents(device);
+
             int result = device.Disconnect();
             WriteStatus($"Disconnect Dev{deviceId}: Code={result}");
+        }
+
+        private void SubscribeDeviceEvents(AdvantechDIO.Module.AdvantechDIO device)
+        {
+            device.DI_ValueChanged -= Device_DiValueChanged;
+            device.DI_ValueChanged += Device_DiValueChanged;
+        }
+
+        private void UnsubscribeDeviceEvents(AdvantechDIO.Module.AdvantechDIO device)
+        {
+            device.DI_ValueChanged -= Device_DiValueChanged;
+        }
+
+        private void Device_DiValueChanged(object sender, EventArgs e)
+        {
+            UiSafe(() =>
+            {
+                int deviceId = -1;
+                if (ReferenceEquals(sender, _dioDev0))
+                {
+                    deviceId = 0;
+                }
+                else if (ReferenceEquals(sender, _dioDev1))
+                {
+                    deviceId = 1;
+                }
+
+                WriteStatus(deviceId >= 0 ? $"Dev{deviceId} DI ChangeOfState event." : "DI ChangeOfState event.");
+                RefreshDioPanel();
+            });
         }
 
         private void DisposeDioInstance(ref AdvantechDIO.Module.AdvantechDIO device)
@@ -556,6 +661,7 @@ namespace AdvantechDIO.ManualTestGui
 
             try
             {
+                UnsubscribeDeviceEvents(device);
                 device.Disconnect();
             }
             catch
@@ -577,6 +683,7 @@ namespace AdvantechDIO.ManualTestGui
                 _statusRefreshTimer = null;
             }
 
+            _toolTip?.Dispose();
             DisposeDioInstance(ref _dioDev0);
             DisposeDioInstance(ref _dioDev1);
         }
@@ -665,6 +772,8 @@ namespace AdvantechDIO.ManualTestGui
 
         private sealed class DeviceTestControls
         {
+            public Button SnapStartButton { get; set; }
+            public Button SnapStopButton { get; set; }
             public TextBox DiPortTextBox { get; set; }
             public TextBox DiBitTextBox { get; set; }
             public Button GetDiPortButton { get; set; }

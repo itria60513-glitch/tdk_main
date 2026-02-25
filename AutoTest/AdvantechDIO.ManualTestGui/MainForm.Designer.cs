@@ -46,9 +46,9 @@ namespace AdvantechDIO.ManualTestGui
             this.grpDevice1.Controls.Add(this.lblDev1State);
             this.grpDevice1.Controls.Add(this.btnDisconnectDev1);
             this.grpDevice1.Controls.Add(this.btnConnectDev1);
-            this.grpDevice1.Location = new System.Drawing.Point(414, 12);
+            this.grpDevice1.Location = new System.Drawing.Point(434, 12);
             this.grpDevice1.Name = "grpDevice1";
-            this.grpDevice1.Size = new System.Drawing.Size(390, 300);
+            this.grpDevice1.Size = new System.Drawing.Size(390, 330);
             this.grpDevice1.TabIndex = 0;
             this.grpDevice1.TabStop = false;
             this.grpDevice1.Text = "Device 1";
@@ -89,7 +89,7 @@ namespace AdvantechDIO.ManualTestGui
             this.grpDevice0.Controls.Add(this.btnConnectDev0);
             this.grpDevice0.Location = new System.Drawing.Point(12, 12);
             this.grpDevice0.Name = "grpDevice0";
-            this.grpDevice0.Size = new System.Drawing.Size(390, 300);
+            this.grpDevice0.Size = new System.Drawing.Size(410, 330);
             this.grpDevice0.TabIndex = 1;
             this.grpDevice0.TabStop = false;
             this.grpDevice0.Text = "Device 0";
@@ -126,7 +126,7 @@ namespace AdvantechDIO.ManualTestGui
             // lblStatus
             // 
             this.lblStatus.AutoSize = true;
-            this.lblStatus.Location = new System.Drawing.Point(12, 321);
+            this.lblStatus.Location = new System.Drawing.Point(12, 351);
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new System.Drawing.Size(63, 13);
             this.lblStatus.TabIndex = 2;
@@ -136,16 +136,16 @@ namespace AdvantechDIO.ManualTestGui
             // 
             this.lstStatus.FormattingEnabled = true;
             this.lstStatus.HorizontalScrollbar = true;
-            this.lstStatus.Location = new System.Drawing.Point(12, 339);
+            this.lstStatus.Location = new System.Drawing.Point(12, 369);
             this.lstStatus.Name = "lstStatus";
-            this.lstStatus.Size = new System.Drawing.Size(792, 147);
+            this.lstStatus.Size = new System.Drawing.Size(812, 130);
             this.lstStatus.TabIndex = 3;
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(816, 500);
+            this.ClientSize = new System.Drawing.Size(836, 512);
             this.Controls.Add(this.lstStatus);
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.grpDevice0);
