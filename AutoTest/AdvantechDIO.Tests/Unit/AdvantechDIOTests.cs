@@ -34,7 +34,7 @@ namespace AdvantechDIO.Tests.Unit
             _mockLog = new Mock<ILogUtility>();
             _defaultConfig = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 3,
                 DIPinCountPerPort = 8,
                 DOPortCount = 3,
@@ -103,7 +103,7 @@ namespace AdvantechDIO.Tests.Unit
         [Test]
         public void Constructor_ValidArgs_SetsPropertiesFromConfig()
         {
-            _defaultConfig.Index = 5;
+            _defaultConfig.DeviceID = 5;
             _defaultConfig.DIPortCount = 2;
             _defaultConfig.DIPinCountPerPort = 4;
             _defaultConfig.DOPortCount = 1;
@@ -129,8 +129,8 @@ namespace AdvantechDIO.Tests.Unit
         [Test]
         public void Connect_DeviceNotPresent_ReturnsErrorAndIsConnectedRemainsFalse()
         {
-            // With a device index unlikely to exist, Connect should fail gracefully
-            _defaultConfig.Index = 99;
+            // With a device ID unlikely to exist, Connect should fail gracefully
+            _defaultConfig.DeviceID = 99;
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, _defaultConfig))
             {
                 int result = dio.Connect();
@@ -155,7 +155,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var cfg = new AdvantechDIOConfig
             {
-                Index = 99,
+                DeviceID = 99,
                 DIPortCount = 0,
                 DIPinCountPerPort = 0,
                 DOPortCount = 0,
@@ -176,7 +176,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var cfg = new AdvantechDIOConfig
             {
-                Index = 99,
+                DeviceID = 99,
                 DIPortCount = 1,
                 DIPinCountPerPort = 8,
                 DOPortCount = 0,
@@ -200,7 +200,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var cfg = new AdvantechDIOConfig
             {
-                Index = 99,
+                DeviceID = 99,
                 DIPortCount = 0,
                 DIPinCountPerPort = 0,
                 DOPortCount = 1,
@@ -410,7 +410,7 @@ namespace AdvantechDIO.Tests.Unit
         [Test]
         public void ExceptionOccurred_RaisedOnConnectFailure()
         {
-            _defaultConfig.Index = 99;
+            _defaultConfig.DeviceID = 99;
             bool eventRaised = false;
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, _defaultConfig))
             {
@@ -441,7 +441,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var config = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 0,
                 DIPinCountPerPort = 0,
                 DOPortCount = 2,
@@ -461,7 +461,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var config = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 2,
                 DIPinCountPerPort = 8,
                 DOPortCount = 0,
@@ -483,7 +483,7 @@ namespace AdvantechDIO.Tests.Unit
             // guard should reject DI calls
             var config = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 0,
                 DIPinCountPerPort = 0,
                 DOPortCount = 2,
@@ -504,7 +504,7 @@ namespace AdvantechDIO.Tests.Unit
         {
             var config = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 2,
                 DIPinCountPerPort = 8,
                 DOPortCount = 0,

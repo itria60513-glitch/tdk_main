@@ -2,14 +2,14 @@ namespace AdvantechDIO.Config
 {
     /// <summary>
     /// Configuration model for AdvantechDIO, mapped from XML settings.
-    /// Drives device index and DI/DO port/pin topology.
+    /// Drives device ID and DI/DO port/pin topology.
     /// </summary>
     public class AdvantechDIOConfig
     {
         /// <summary>
-        /// Advantech device index, mapped to DeviceID.
+        /// Advantech device ID, mapped to DeviceID.
         /// </summary>
-        public int Index { get; set; }
+        public int DeviceID { get; set; }
 
         /// <summary>
         /// Number of digital input ports. 0 means DI is not configured.

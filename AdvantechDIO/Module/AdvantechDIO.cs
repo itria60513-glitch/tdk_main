@@ -36,11 +36,29 @@ namespace AdvantechDIO.Module
         #region Fields
 
         private readonly ILogUtility _logUtility;
-        /// <summary>
-        /// XML-mapped configuration for device index and port topology.
-        /// </summary>
-        public AdvantechDIOConfig Config { get; set; }
         private readonly object _syncRoot = new object();
+        private AdvantechDIOConfig _config;
+
+        /// <summary>
+        /// XML-mapped configuration for device ID and port topology.
+        /// Updating this property will also refresh derived topology properties.
+        /// </summary>
+        public AdvantechDIOConfig Config
+        {
+            get => _config;
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                lock (_syncRoot)
+                {
+                    _config = value;
+                }
+            }
+        }
 
         private InstantDiCtrl _instantDiCtrl;
         private InstantDoCtrl _instantDoCtrl;
@@ -73,8 +91,17 @@ namespace AdvantechDIO.Module
         public bool IsVirtual => false;
 
         /// <inheritdoc />
-        /// <remarks>Value comes from <see cref="AdvantechDIOConfig.Index"/>.</remarks>
-        public int DeviceID { get; }
+        /// <remarks>Value comes from current <see cref="AdvantechDIOConfig.DeviceID"/>.</remarks>
+        public int DeviceID
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _config.DeviceID;
+                }
+            }
+        }
 
         /// <inheritdoc />
         /// <remarks>
@@ -83,16 +110,52 @@ namespace AdvantechDIO.Module
         public string DeviceName => _deviceName;
 
         /// <inheritdoc />
-        public int InputPortCount { get; }
+        public int InputPortCount
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _config.DIPortCount;
+                }
+            }
+        }
 
         /// <inheritdoc />
-        public int InputBitsPerPort { get; }
+        public int InputBitsPerPort
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _config.DIPinCountPerPort;
+                }
+            }
+        }
 
         /// <inheritdoc />
-        public int OutputPortCount { get; }
+        public int OutputPortCount
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _config.DOPortCount;
+                }
+            }
+        }
 
         /// <inheritdoc />
-        public int OutputBitsPerPort { get; }
+        public int OutputBitsPerPort
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _config.DOPinCountPerPort;
+                }
+            }
+        }
 
         #endregion
 
@@ -102,18 +165,12 @@ namespace AdvantechDIO.Module
         /// Initializes a new instance of <see cref="AdvantechDIO"/> with dependency injection.
         /// </summary>
         /// <param name="logUtility">Logging facade for diagnostics. Must not be null.</param>
-        /// <param name="config">XML-mapped configuration for device index and port topology. Must not be null.</param>
+        /// <param name="config">XML-mapped configuration for device ID and port topology. Must not be null.</param>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="logUtility"/> or <paramref name="config"/> is null.</exception>
         public AdvantechDIO(ILogUtility logUtility, AdvantechDIOConfig config)
         {
             _logUtility = logUtility ?? throw new ArgumentNullException(nameof(logUtility));
             Config = config ?? throw new ArgumentNullException(nameof(config));
-
-            DeviceID = Config.Index;
-            InputPortCount = Config.DIPortCount;
-            InputBitsPerPort = Config.DIPinCountPerPort;
-            OutputPortCount = Config.DOPortCount;
-            OutputBitsPerPort = Config.DOPinCountPerPort;
         }
 
         #endregion
@@ -136,7 +193,7 @@ namespace AdvantechDIO.Module
                         return (int)ErrorCode.Success;
                     }
 
-                    var deviceInfo = new DeviceInformation(Config.Index);
+                    var deviceInfo = new DeviceInformation(Config.DeviceID);
 
                     // Initialize DI controller if DI ports are configured
                     if (InputPortCount > 0)
@@ -146,7 +203,7 @@ namespace AdvantechDIO.Module
                         if (!_instantDiCtrl.Initialized)
                         {
                             var errCode = ErrorCode.ErrorDeviceNotExist;
-                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DI controller failed to initialize for device index {Config.Index}");
+                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DI controller failed to initialize for device ID {Config.DeviceID}");
                             RaiseExceptionOccurred();
                             CleanupControllers();
                             return (int)errCode;
@@ -162,7 +219,7 @@ namespace AdvantechDIO.Module
                         if (!_instantDoCtrl.Initialized)
                         {
                             var errCode = ErrorCode.ErrorDeviceNotExist;
-                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DO controller failed to initialize for device index {Config.Index}");
+                            _logUtility.WriteLog(LogKey, LogHeadType.Error, $"DO controller failed to initialize for device ID {Config.DeviceID}");
                             RaiseExceptionOccurred();
                             CleanupControllers();
                             return (int)errCode;

@@ -26,7 +26,7 @@ namespace AdvantechDIO.ManualTestGui
 
             _config = new AdvantechDIOConfig
             {
-                Index = 0,
+                DeviceID = 0,
                 DIPortCount = 2,
                 DIPinCountPerPort = 8,
                 DOPortCount = 1,
@@ -41,7 +41,7 @@ namespace AdvantechDIO.ManualTestGui
 
         private void ApplyDefaultUiValues()
         {
-            txtDeviceId.Text = _config.Index.ToString(CultureInfo.InvariantCulture);
+            txtDeviceId.Text = _config.DeviceID.ToString(CultureInfo.InvariantCulture);
             txtDiPort.Text = "0";
             txtDiBit.Text = "0";
             txtDoPort.Text = "0";
@@ -283,7 +283,7 @@ namespace AdvantechDIO.ManualTestGui
                 _dio = null;
             }
 
-            _config.Index = deviceId;
+            _config.DeviceID = deviceId;
             _dio = new AdvantechDIO.Module.AdvantechDIO(_logger, _config);
             _dio.DI_ValueChanged += OnDiValueChanged;
             _dio.ExceptionOccurred += OnExceptionOccurred;
