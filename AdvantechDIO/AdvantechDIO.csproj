@@ -53,5 +53,24 @@
       <Name>TDKLogUtility</Name>
     </ProjectReference>
   </ItemGroup>
+  <Target Name="CopyAdvantechDioToManualTestGui" AfterTargets="Build">
+    <PropertyGroup>
+      <ManualTestGuiBinDir>$(MSBuildProjectDirectory)\..\AutoTest\AdvantechDIO.ManualTestGui\bin\$(Configuration)\</ManualTestGuiBinDir>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(ManualTestGuiBinDir)" Condition="!Exists('$(ManualTestGuiBinDir)')" />
+
+    <Copy
+      SourceFiles="$(TargetPath)"
+      DestinationFiles="$(ManualTestGuiBinDir)$(TargetFileName)"
+      SkipUnchangedFiles="true" />
+
+    <Copy
+      SourceFiles="$(TargetDir)$(TargetName).pdb"
+      DestinationFiles="$(ManualTestGuiBinDir)$(TargetName).pdb"
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+  </Target>
+
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
