@@ -1,5 +1,10 @@
 # Project Guidelines
 
+# Copilot Chat 回覆語言規則
+
+- **所有 Copilot Chat 回覆必須使用繁體中文**（除非使用者明確要求其他語言）。
+
+
 ## Code Style
 
 - **Language**: C# (.NET Framework 4.7.2). All comments and XML docs in **English**; specs are in Traditional Chinese.
