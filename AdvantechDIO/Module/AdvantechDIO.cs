@@ -208,7 +208,7 @@ namespace AdvantechDIO.Module
                             CleanupControllers();
                             return (int)errCode;
                         }
-                        _instantDiCtrl.ChangeOfState += OnDiChangeOfState;
+                        _instantDiCtrl.ChangeOfState += new EventHandler<DiSnapEventArgs>(OnDiChangeOfState);
                     }
 
                     // Initialize DO controller if DO ports are configured
@@ -679,7 +679,7 @@ namespace AdvantechDIO.Module
         {
             if (_instantDiCtrl != null)
             {
-                _instantDiCtrl.ChangeOfState -= OnDiChangeOfState;
+                _instantDiCtrl.ChangeOfState -= new EventHandler<DiSnapEventArgs>(OnDiChangeOfState);
                 _instantDiCtrl.Dispose();
                 _instantDiCtrl = null;
             }
@@ -692,11 +692,21 @@ namespace AdvantechDIO.Module
         }
 
         /// <summary>
-        /// SDK DI ChangeOfState callback — forwards to <see cref="DI_ValueChanged"/>.
+        /// SDK 
+        /// OfState callback — forwards to <see cref="DI_ValueChanged"/>.
         /// </summary>
         private void OnDiChangeOfState(object sender, DiSnapEventArgs e)
         {
-            DI_ValueChanged?.Invoke(this, EventArgs.Empty);
+            try
+            {
+                _logUtility.WriteLog(LogKey, LogHeadType.Info, "DI ChangeOfState triggered");
+                DI_ValueChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logUtility.WriteLog(LogKey, LogHeadType.Error, $"OnDiChangeOfState callback failed: {ex.Message}");
+                RaiseExceptionOccurred();
+            }
         }
 
         private void RaiseExceptionOccurred()
