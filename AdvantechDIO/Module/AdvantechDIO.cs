@@ -128,7 +128,7 @@ namespace AdvantechDIO.Module
             {
                 lock (_syncRoot)
                 {
-                    return _config.DIPinCountPerPort;
+                    return _config.PinCountPerPort;
                 }
             }
         }
@@ -152,7 +152,7 @@ namespace AdvantechDIO.Module
             {
                 lock (_syncRoot)
                 {
-                    return _config.DOPinCountPerPort;
+                    return _config.PinCountPerPort;
                 }
             }
         }
