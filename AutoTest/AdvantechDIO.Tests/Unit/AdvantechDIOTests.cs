@@ -35,10 +35,9 @@ namespace AdvantechDIO.Tests.Unit
             _defaultConfig = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 3,
-                DIPinCountPerPort = 8,
-                DOPortCount = 3,
-                DOPinCountPerPort = 8
+                DIPortMax = 24,
+                DOPortMax = 24,
+                PinCountPerPort = 8
             };
         }
 
@@ -104,16 +103,15 @@ namespace AdvantechDIO.Tests.Unit
         public void Constructor_ValidArgs_SetsPropertiesFromConfig()
         {
             _defaultConfig.DeviceID = 5;
-            _defaultConfig.DIPortCount = 2;
-            _defaultConfig.DIPinCountPerPort = 4;
-            _defaultConfig.DOPortCount = 1;
-            _defaultConfig.DOPinCountPerPort = 8;
+            _defaultConfig.DIPortMax = 16;
+            _defaultConfig.DOPortMax = 8;
+            _defaultConfig.PinCountPerPort = 8;
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, _defaultConfig))
             {
                 Assert.AreEqual(5, dio.DeviceID);
                 Assert.AreEqual(2, dio.InputPortCount);
-                Assert.AreEqual(4, dio.InputBitsPerPort);
+                Assert.AreEqual(8, dio.InputBitsPerPort);
                 Assert.AreEqual(1, dio.OutputPortCount);
                 Assert.AreEqual(8, dio.OutputBitsPerPort);
                 Assert.IsFalse(dio.IsVirtual);
@@ -156,10 +154,9 @@ namespace AdvantechDIO.Tests.Unit
             var cfg = new AdvantechDIOConfig
             {
                 DeviceID = 99,
-                DIPortCount = 0,
-                DIPinCountPerPort = 0,
-                DOPortCount = 0,
-                DOPinCountPerPort = 0
+                DIPortMax = 0,
+                DOPortMax = 0,
+                PinCountPerPort = 0
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, cfg))
@@ -177,10 +174,9 @@ namespace AdvantechDIO.Tests.Unit
             var cfg = new AdvantechDIOConfig
             {
                 DeviceID = 99,
-                DIPortCount = 1,
-                DIPinCountPerPort = 8,
-                DOPortCount = 0,
-                DOPinCountPerPort = 0
+                DIPortMax = 8,
+                DOPortMax = 0,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, cfg))
@@ -201,10 +197,9 @@ namespace AdvantechDIO.Tests.Unit
             var cfg = new AdvantechDIOConfig
             {
                 DeviceID = 99,
-                DIPortCount = 0,
-                DIPinCountPerPort = 0,
-                DOPortCount = 1,
-                DOPinCountPerPort = 8
+                DIPortMax = 0,
+                DOPortMax = 8,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, cfg))
@@ -442,16 +437,15 @@ namespace AdvantechDIO.Tests.Unit
             var config = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 0,
-                DIPinCountPerPort = 0,
-                DOPortCount = 2,
-                DOPinCountPerPort = 8
+                DIPortMax = 0,
+                DOPortMax = 16,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, config))
             {
                 Assert.AreEqual(0, dio.InputPortCount);
-                Assert.AreEqual(0, dio.InputBitsPerPort);
+                Assert.AreEqual(8, dio.InputBitsPerPort);
                 Assert.AreEqual(2, dio.OutputPortCount);
             }
         }
@@ -462,17 +456,16 @@ namespace AdvantechDIO.Tests.Unit
             var config = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 2,
-                DIPinCountPerPort = 8,
-                DOPortCount = 0,
-                DOPinCountPerPort = 0
+                DIPortMax = 16,
+                DOPortMax = 0,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, config))
             {
                 Assert.AreEqual(2, dio.InputPortCount);
                 Assert.AreEqual(0, dio.OutputPortCount);
-                Assert.AreEqual(0, dio.OutputBitsPerPort);
+                Assert.AreEqual(8, dio.OutputBitsPerPort);
             }
         }
 
@@ -484,10 +477,9 @@ namespace AdvantechDIO.Tests.Unit
             var config = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 0,
-                DIPinCountPerPort = 0,
-                DOPortCount = 2,
-                DOPinCountPerPort = 8
+                DIPortMax = 0,
+                DOPortMax = 16,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, config))
@@ -505,10 +497,9 @@ namespace AdvantechDIO.Tests.Unit
             var config = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 2,
-                DIPinCountPerPort = 8,
-                DOPortCount = 0,
-                DOPinCountPerPort = 0
+                DIPortMax = 16,
+                DOPortMax = 0,
+                PinCountPerPort = 8
             };
 
             using (var dio = new AdvantechDIO.Module.AdvantechDIO(_mockLog.Object, config))

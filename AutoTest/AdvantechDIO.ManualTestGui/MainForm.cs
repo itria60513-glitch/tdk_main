@@ -33,24 +33,22 @@ namespace AdvantechDIO.ManualTestGui
         {
             InitializeComponent();
 
-            _logger = new UiLogUtility();
+            _logger = new UiLogUtility(msg => WriteStatus(msg));
             _toolTip = new ToolTip { AutoPopDelay = 5000, InitialDelay = 400, ShowAlways = true };
 
             _configDev0 = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortCount = 1,
-                DIPinCountPerPort = 8,
-                DOPortCount = 1,
-                DOPinCountPerPort = 8
+                DIPortMax = 8,
+                DOPortMax = 8,
+                PinCountPerPort = 8
             };
             _configDev1 = new AdvantechDIOConfig
             {
                 DeviceID = 1,
-                DIPortCount = 1,
-                DIPinCountPerPort = 8,
-                DOPortCount = 1,
-                DOPinCountPerPort = 8
+                DIPortMax = 8,
+                DOPortMax = 8,
+                PinCountPerPort = 8
             };
 
             InitializeDevicePanel(grpDevice0, 0, out _diLedsDev0, out _doLedsDev0);
@@ -725,6 +723,12 @@ namespace AdvantechDIO.ManualTestGui
 #pragma warning restore CS0067
 
             private readonly Hashtable _activeLogList = new Hashtable();
+            private readonly Action<string> _writeStatus;
+
+            public UiLogUtility(Action<string> writeStatus)
+            {
+                _writeStatus = writeStatus ?? throw new ArgumentNullException(nameof(writeStatus));
+            }
 
             public bool IsEnableDebugLog => true;
             public string MainLogDirectory { get; set; } = string.Empty;
@@ -733,39 +737,44 @@ namespace AdvantechDIO.ManualTestGui
             public int DaysForPerservingLog => 0;
             public Hashtable ActiveLogList => _activeLogList;
 
+            private void Log(string message)
+            {
+                _writeStatus(message);
+            }
+
             public bool WriteLog(string szKey, string szLogMessage)
             {
-                Debug.WriteLine($"[{szKey}] {szLogMessage}");
+                Log($"[{szKey}] {szLogMessage}");
                 return true;
             }
 
             public bool WriteLog(string szKey, LogHeadType enLogType, string szLogMessage)
             {
-                Debug.WriteLine($"[{szKey}] [{enLogType}] {szLogMessage}");
+                Log($"[{szKey}] [{enLogType}] {szLogMessage}");
                 return true;
             }
 
             public bool WriteLog(string szKey, LogHeadType enLogType, string szLogMessage, string szRemark)
             {
-                Debug.WriteLine($"[{szKey}] [{enLogType}] {szLogMessage} | {szRemark}");
+                Log($"[{szKey}] [{enLogType}] {szLogMessage} | {szRemark}");
                 return true;
             }
 
             public bool WriteLog(string szKey, LogHeadType enLogType, LogCateType enCateType, string szLogMessage, string szRemark = null)
             {
-                Debug.WriteLine($"[{szKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
+                Log($"[{szKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
                 return true;
             }
 
             public bool WriteLogWithSecured(string szLogKey, LogHeadType enLogType, string szLogMessage, string[] SecuredSections, string szRemark = null)
             {
-                Debug.WriteLine($"[{szLogKey}] [{enLogType}] {szLogMessage} | {szRemark}");
+                Log($"[{szLogKey}] [{enLogType}] {szLogMessage} | {szRemark}");
                 return true;
             }
 
             public bool WriteLogWithSecured(string szLogKey, LogHeadType enLogType, LogCateType enCateType, string szLogMessage, string[] SecuredSections, string szRemark = null)
             {
-                Debug.WriteLine($"[{szLogKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
+                Log($"[{szLogKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
                 return true;
             }
         }

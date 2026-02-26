@@ -7,28 +7,37 @@ namespace AdvantechDIO.Config
     public class AdvantechDIOConfig
     {
         /// <summary>
-        /// Advantech device ID, mapped to DeviceID.
+        /// Advantech device ID, mapped to DeviceID (XML: Index).
         /// </summary>
         public int DeviceID { get; set; }
 
         /// <summary>
-        /// Number of digital input ports. 0 means DI is not configured.
+        /// Maximum number of digital input pins (XML: DIPortMax).
+        /// Used for GUI rendering and to derive <see cref="DIPortCount"/>.
         /// </summary>
-        public int DIPortCount { get; set; }
+        public int DIPortMax { get; set; }
 
         /// <summary>
-        /// Number of pins (bits) per DI port.
+        /// Maximum number of digital output pins (XML: DOPortMax).
+        /// Used for GUI rendering and to derive <see cref="DOPortCount"/>.
         /// </summary>
-        public int DIPinCountPerPort { get; set; }
+        public int DOPortMax { get; set; }
 
         /// <summary>
-        /// Number of digital output ports. 0 means DO is not configured.
+        /// Number of pins (bits) per port, shared for both DI and DO on the same board (XML: PinCountPerPort).
         /// </summary>
-        public int DOPortCount { get; set; }
+        public int PinCountPerPort { get; set; }
 
         /// <summary>
-        /// Number of pins (bits) per DO port.
+        /// Computed number of digital input ports. 0 means DI is not configured.
+        /// Derived from <see cref="DIPortMax"/> / <see cref="PinCountPerPort"/>.
         /// </summary>
-        public int DOPinCountPerPort { get; set; }
+        public int DIPortCount => PinCountPerPort > 0 ? DIPortMax / PinCountPerPort : 0;
+
+        /// <summary>
+        /// Computed number of digital output ports. 0 means DO is not configured.
+        /// Derived from <see cref="DOPortMax"/> / <see cref="PinCountPerPort"/>.
+        /// </summary>
+        public int DOPortCount => PinCountPerPort > 0 ? DOPortMax / PinCountPerPort : 0;
     }
 }
