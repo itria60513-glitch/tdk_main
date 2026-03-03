@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using LogUtility;
 using TDKLogUtility.Module;
 
 namespace AdvantechDIO.ManualTestGui
@@ -26,27 +27,28 @@ namespace AdvantechDIO.ManualTestGui
         private Timer _statusRefreshTimer;
         private bool _isRefreshingStatusPanel;
         private ToolTip _toolTip;
-        private byte? _prevDiDev0;
-        private byte? _prevDiDev1;
 
         public MainForm()
         {
             InitializeComponent();
 
-            _logger = new UiLogUtility(msg => WriteStatus(msg));
+            RemoveDesignPreviewControls(grpDevice0);
+            RemoveDesignPreviewControls(grpDevice1);
+
+            _logger = new LogUtilityClient();
             _toolTip = new ToolTip { AutoPopDelay = 5000, InitialDelay = 400, ShowAlways = true };
 
             _configDev0 = new AdvantechDIOConfig
             {
                 DeviceID = 0,
-                DIPortMax = 8,
+                DIPortMax = 16,
                 DOPortMax = 8,
                 PinCountPerPort = 8
             };
             _configDev1 = new AdvantechDIOConfig
             {
                 DeviceID = 1,
-                DIPortMax = 8,
+                DIPortMax = 16,
                 DOPortMax = 8,
                 PinCountPerPort = 8
             };
@@ -67,6 +69,17 @@ namespace AdvantechDIO.ManualTestGui
             _statusRefreshTimer.Start();
 
             WriteStatus("Application started.");
+        }
+
+        private static void RemoveDesignPreviewControls(Control parent)
+        {
+            for (int i = parent.Controls.Count - 1; i >= 0; i--)
+            {
+                if (Equals(parent.Controls[i].Tag, "DesignPreview"))
+                {
+                    parent.Controls.RemoveAt(i);
+                }
+            }
         }
 
         private void InitializeDevicePanel(GroupBox grp, int deviceId, out Label[] diLeds, out Label[] doLeds)
@@ -164,12 +177,12 @@ namespace AdvantechDIO.ManualTestGui
             DeviceTestControls controls = new DeviceTestControls();
 
             // SnapStart / SnapStop — row below Connect/Disconnect to avoid overlap
-            controls.SnapStartButton = new Button { Location = new Point(10, 52), Size = new Size(88, 24), Text = "SnapStart" };
+            controls.SnapStartButton = new Button { Name = $"btnDev{deviceId}SnapStart", Location = new Point(10, 52), Size = new Size(88, 24), Text = "SnapStart" };
             controls.SnapStartButton.Click += (s, e) => ExecuteSnapStart(deviceId);
             _toolTip.SetToolTip(controls.SnapStartButton, "Start interrupt-driven DI monitoring (enables ChangeOfState events)");
             grp.Controls.Add(controls.SnapStartButton);
 
-            controls.SnapStopButton = new Button { Location = new Point(104, 52), Size = new Size(88, 24), Text = "SnapStop" };
+            controls.SnapStopButton = new Button { Name = $"btnDev{deviceId}SnapStop", Location = new Point(104, 52), Size = new Size(88, 24), Text = "SnapStop" };
             controls.SnapStopButton.Click += (s, e) => ExecuteSnapStop(deviceId);
             _toolTip.SetToolTip(controls.SnapStopButton, "Stop interrupt-driven DI monitoring");
             grp.Controls.Add(controls.SnapStopButton);
@@ -178,7 +191,7 @@ namespace AdvantechDIO.ManualTestGui
             const int diY = 86;
             grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, diY + 2), Text = "DI Port" });
             controls.DiPortTextBox = new TextBox { Location = new Point(58, diY), Size = new Size(36, 20), Text = "0" };
-            _toolTip.SetToolTip(controls.DiPortTextBox, "Port index (0-based); usually 0");
+            _toolTip.SetToolTip(controls.DiPortTextBox, "Port index (0-based): 0 or 1 for DI");
             grp.Controls.Add(controls.DiPortTextBox);
 
             grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, diY + 2), Text = "Bit" });
@@ -186,12 +199,12 @@ namespace AdvantechDIO.ManualTestGui
             _toolTip.SetToolTip(controls.DiBitTextBox, "Bit index within the port (0-7)");
             grp.Controls.Add(controls.DiBitTextBox);
 
-            controls.GetDiPortButton = new Button { Location = new Point(172, diY - 1), Size = new Size(88, 23), Text = "Get DI Port" };
+            controls.GetDiPortButton = new Button { Name = $"btnDev{deviceId}GetDiPort", Location = new Point(172, diY - 1), Size = new Size(88, 23), Text = "Get DI Port" };
             controls.GetDiPortButton.Click += (s, e) => ExecuteGetDiPort(deviceId);
             _toolTip.SetToolTip(controls.GetDiPortButton, "Read all 8 DI bits as a byte (uses Port value)");
             grp.Controls.Add(controls.GetDiPortButton);
 
-            controls.GetDiBitButton = new Button { Location = new Point(266, diY - 1), Size = new Size(88, 23), Text = "Get DI Bit" };
+            controls.GetDiBitButton = new Button { Name = $"btnDev{deviceId}GetDiBit", Location = new Point(266, diY - 1), Size = new Size(88, 23), Text = "Get DI Bit" };
             controls.GetDiBitButton.Click += (s, e) => ExecuteGetDiBit(deviceId);
             _toolTip.SetToolTip(controls.GetDiBitButton, "Read a single DI bit (uses Port and Bit)");
             grp.Controls.Add(controls.GetDiBitButton);
@@ -203,7 +216,7 @@ namespace AdvantechDIO.ManualTestGui
             const int doY = 130;
             grp.Controls.Add(new Label { AutoSize = true, Location = new Point(10, doY + 2), Text = "DO Port" });
             controls.DoPortTextBox = new TextBox { Location = new Point(58, doY), Size = new Size(36, 20), Text = "0" };
-            _toolTip.SetToolTip(controls.DoPortTextBox, "Port index (0-based); usually 0");
+            _toolTip.SetToolTip(controls.DoPortTextBox, "Port index (0-based): DO supports only 0");
             grp.Controls.Add(controls.DoPortTextBox);
 
             grp.Controls.Add(new Label { AutoSize = true, Location = new Point(103, doY + 2), Text = "Bit" });
@@ -216,22 +229,22 @@ namespace AdvantechDIO.ManualTestGui
             _toolTip.SetToolTip(controls.DoValueTextBox, "0-255 for Set DO Port; 0 or 1 for Set DO Bit");
             grp.Controls.Add(controls.DoValueTextBox);
 
-            controls.GetDoPortButton = new Button { Location = new Point(251, doY - 1), Size = new Size(103, 23), Text = "Get DO Port" };
+            controls.GetDoPortButton = new Button { Name = $"btnDev{deviceId}GetDoPort", Location = new Point(10, doY + 24), Size = new Size(88, 23), Text = "Get DO Port" };
             controls.GetDoPortButton.Click += (s, e) => ExecuteGetDoPort(deviceId);
             _toolTip.SetToolTip(controls.GetDoPortButton, "Read all 8 DO bits as a byte (uses Port value)");
             grp.Controls.Add(controls.GetDoPortButton);
 
-            controls.GetDoBitButton = new Button { Location = new Point(10, doY + 24), Size = new Size(88, 23), Text = "Get DO Bit" };
+            controls.GetDoBitButton = new Button { Name = $"btnDev{deviceId}GetDoBit", Location = new Point(104, doY + 24), Size = new Size(88, 23), Text = "Get DO Bit" };
             controls.GetDoBitButton.Click += (s, e) => ExecuteGetDoBit(deviceId);
             _toolTip.SetToolTip(controls.GetDoBitButton, "Read a single DO bit (uses Port and Bit)");
             grp.Controls.Add(controls.GetDoBitButton);
 
-            controls.SetDoPortButton = new Button { Location = new Point(104, doY + 24), Size = new Size(88, 23), Text = "Set DO Port" };
+            controls.SetDoPortButton = new Button { Name = $"btnDev{deviceId}SetDoPort", Location = new Point(10, doY + 48), Size = new Size(88, 23), Text = "Set DO Port" };
             controls.SetDoPortButton.Click += (s, e) => ExecuteSetDoPort(deviceId);
             _toolTip.SetToolTip(controls.SetDoPortButton, "Write Value (0-255) to all DO bits (uses Port and Value)");
             grp.Controls.Add(controls.SetDoPortButton);
 
-            controls.SetDoBitButton = new Button { Location = new Point(198, doY + 24), Size = new Size(88, 23), Text = "Set DO Bit" };
+            controls.SetDoBitButton = new Button { Name = $"btnDev{deviceId}SetDoBit", Location = new Point(104, doY + 48), Size = new Size(88, 23), Text = "Set DO Bit" };
             controls.SetDoBitButton.Click += (s, e) => ExecuteSetDoBit(deviceId);
             _toolTip.SetToolTip(controls.SetDoBitButton, "Set a single DO bit to 0 or 1 (uses Port, Bit, and Value)");
             grp.Controls.Add(controls.SetDoBitButton);
@@ -541,16 +554,6 @@ namespace AdvantechDIO.ManualTestGui
             stateLabel.Text = "Connected";
             stateLabel.ForeColor = Color.Green;
 
-            // Software DI change detection — works even when hardware interrupt is unavailable
-            byte? prevDi = ReferenceEquals(device, _dioDev0) ? _prevDiDev0 : _prevDiDev1;
-            if (prevDi.HasValue && prevDi.Value != diValue)
-            {
-                int devId = ReferenceEquals(device, _dioDev0) ? 0 : 1;
-                WriteStatus($"Dev{devId} DI changed: 0x{diValue:X2} (was 0x{prevDi.Value:X2})");
-            }
-            if (ReferenceEquals(device, _dioDev0)) _prevDiDev0 = diValue;
-            else _prevDiDev1 = diValue;
-
             for (int bit = 0; bit < 8; bit++)
             {
                 bool diOn = (diValue & (1 << bit)) != 0;
@@ -624,11 +627,14 @@ namespace AdvantechDIO.ManualTestGui
         {
             device.DI_ValueChanged -= Device_DiValueChanged;
             device.DI_ValueChanged += Device_DiValueChanged;
+            device.DO_ValueChanged -= Device_DoValueChanged;
+            device.DO_ValueChanged += Device_DoValueChanged;
         }
 
         private void UnsubscribeDeviceEvents(AdvantechDIO.Module.AdvantechDIO device)
         {
             device.DI_ValueChanged -= Device_DiValueChanged;
+            device.DO_ValueChanged -= Device_DoValueChanged;
         }
 
         private void Device_DiValueChanged(object sender, EventArgs e)
@@ -646,6 +652,25 @@ namespace AdvantechDIO.ManualTestGui
                 }
 
                 WriteStatus(deviceId >= 0 ? $"Dev{deviceId} DI ChangeOfState event." : "DI ChangeOfState event.");
+                RefreshDioPanel();
+            });
+        }
+
+        private void Device_DoValueChanged(object sender, EventArgs e)
+        {
+            UiSafe(() =>
+            {
+                int deviceId = -1;
+                if (ReferenceEquals(sender, _dioDev0))
+                {
+                    deviceId = 0;
+                }
+                else if (ReferenceEquals(sender, _dioDev1))
+                {
+                    deviceId = 1;
+                }
+
+                WriteStatus(deviceId >= 0 ? $"Dev{deviceId} DO callback event." : "DO callback event.");
                 RefreshDioPanel();
             });
         }
@@ -689,11 +714,103 @@ namespace AdvantechDIO.ManualTestGui
         private void WriteStatus(string message)
         {
             string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-            lstStatus.Items.Insert(0, line);
-            if (lstStatus.Items.Count > 500)
+
+            try
             {
-                lstStatus.Items.RemoveAt(lstStatus.Items.Count - 1);
+                LogHeadType logType = ResolveLogHeadType(message);
+                _logger?.WriteLog("AdvantechDIO.ManualTestGui", logType, message);
             }
+            catch
+            {
+            }
+
+            UiSafe(() =>
+            {
+                lstStatus.Items.Insert(0, line);
+                if (lstStatus.Items.Count > 500)
+                {
+                    lstStatus.Items.RemoveAt(lstStatus.Items.Count - 1);
+                }
+            });
+        }
+
+        private static LogHeadType ResolveLogHeadType(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return LogHeadType.Info;
+            }
+
+            string lower = message.ToLowerInvariant();
+            if (TryExtractResultCode(message, out int code))
+            {
+                if (code < 0)
+                {
+                    return LogHeadType.Error;
+                }
+
+                if (code > 0)
+                {
+                    return LogHeadType.Warning;
+                }
+
+                return LogHeadType.Info;
+            }
+
+            if (lower.Contains("error") ||
+                lower.Contains("failed") ||
+                lower.Contains("exception") ||
+                lower.Contains("abort"))
+            {
+                return LogHeadType.Error;
+            }
+
+            if (lower.Contains("validation") ||
+                lower.Contains("not connected") ||
+                lower.Contains("warn") ||
+                lower.Contains("timeout"))
+            {
+                return LogHeadType.Warning;
+            }
+
+            return LogHeadType.Info;
+        }
+
+        private static bool TryExtractResultCode(string message, out int code)
+        {
+            code = 0;
+            const string marker = "Code=";
+            int start = message.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start < 0)
+            {
+                return false;
+            }
+
+            start += marker.Length;
+            while (start < message.Length && message[start] == ' ')
+            {
+                start++;
+            }
+
+            int end = start;
+            while (end < message.Length)
+            {
+                char c = message[end];
+                if ((c >= '0' && c <= '9') || c == '-' || c == '+')
+                {
+                    end++;
+                    continue;
+                }
+                break;
+            }
+
+            if (end <= start)
+            {
+                return false;
+            }
+
+            string raw = message.Substring(start, end - start);
+            return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out code);
         }
 
         private void UiSafe(Action action)
@@ -710,72 +827,6 @@ namespace AdvantechDIO.ManualTestGui
             else
             {
                 action();
-            }
-        }
-
-        private sealed class UiLogUtility : ILogUtility
-        {
-#pragma warning disable CS0067
-            public event ForceWritesEventHandler ForceWritesEvent;
-            public event BufferSizeChangedEventHandler BufferSizeChangedEvent;
-            public event MainDirectoryChangedEventHandler MainDirectoryChangedEvent;
-            public event LogListChangedEventHandler LogListChangedEvent;
-#pragma warning restore CS0067
-
-            private readonly Hashtable _activeLogList = new Hashtable();
-            private readonly Action<string> _writeStatus;
-
-            public UiLogUtility(Action<string> writeStatus)
-            {
-                _writeStatus = writeStatus ?? throw new ArgumentNullException(nameof(writeStatus));
-            }
-
-            public bool IsEnableDebugLog => true;
-            public string MainLogDirectory { get; set; } = string.Empty;
-            public int BufferSizeInKB { get; set; }
-            public int AutoFlushTimerMinutes { get; set; }
-            public int DaysForPerservingLog => 0;
-            public Hashtable ActiveLogList => _activeLogList;
-
-            private void Log(string message)
-            {
-                _writeStatus(message);
-            }
-
-            public bool WriteLog(string szKey, string szLogMessage)
-            {
-                Log($"[{szKey}] {szLogMessage}");
-                return true;
-            }
-
-            public bool WriteLog(string szKey, LogHeadType enLogType, string szLogMessage)
-            {
-                Log($"[{szKey}] [{enLogType}] {szLogMessage}");
-                return true;
-            }
-
-            public bool WriteLog(string szKey, LogHeadType enLogType, string szLogMessage, string szRemark)
-            {
-                Log($"[{szKey}] [{enLogType}] {szLogMessage} | {szRemark}");
-                return true;
-            }
-
-            public bool WriteLog(string szKey, LogHeadType enLogType, LogCateType enCateType, string szLogMessage, string szRemark = null)
-            {
-                Log($"[{szKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
-                return true;
-            }
-
-            public bool WriteLogWithSecured(string szLogKey, LogHeadType enLogType, string szLogMessage, string[] SecuredSections, string szRemark = null)
-            {
-                Log($"[{szLogKey}] [{enLogType}] {szLogMessage} | {szRemark}");
-                return true;
-            }
-
-            public bool WriteLogWithSecured(string szLogKey, LogHeadType enLogType, LogCateType enCateType, string szLogMessage, string[] SecuredSections, string szRemark = null)
-            {
-                Log($"[{szLogKey}] [{enLogType}] [{enCateType}] {szLogMessage} | {szRemark}");
-                return true;
             }
         }
 

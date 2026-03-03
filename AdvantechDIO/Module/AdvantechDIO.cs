@@ -716,6 +716,7 @@ namespace AdvantechDIO.Module
 
         private void RaiseDO_ValueChanged()
         {
+            _logUtility.WriteLog(LogKey, LogHeadType.Info, "DO_ValueChanged callback raised");
             DO_ValueChanged?.Invoke(this, EventArgs.Empty);
         }
 
